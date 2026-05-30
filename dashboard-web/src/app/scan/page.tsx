@@ -305,7 +305,7 @@ export default function ScanAttendancePage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center p-5 antialiased relative overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1625 40%, #0f0f1a 100%)' }}>
+      style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #faf8ff 50%, #f5f3ff 100%)' }}>
       
       {/* Dynamic Color Flash Overlay */}
       {flashColor && (
@@ -314,45 +314,45 @@ export default function ScanAttendancePage() {
       )}
       
       <div className="absolute top-[-25%] right-[-15%] w-[600px] h-[600px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(91,77,199,0.12) 0%, transparent 70%)' }} />
+        style={{ background: 'radial-gradient(circle, rgba(91,77,199,0.08) 0%, transparent 70%)' }} />
 
       <div className="max-w-xl w-full rounded-2xl p-7 space-y-6 animate-scale-in relative z-10"
-        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', backdropFilter: 'blur(25px)' }}>
+        style={{ background: 'rgba(255, 255, 255, 0.75)', border: '1px solid rgba(91, 77, 199, 0.08)', backdropFilter: 'blur(25px)', boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.05)' }}>
         
         {/* Header */}
-        <div className="text-center space-y-2 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="text-center space-y-2 pb-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
           <div className="mx-auto h-11 w-11 rounded-xl flex items-center justify-center mb-3"
             style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}>
-            <span className="text-xl">🤖</span>
+            <span className="text-xl text-white">🤖</span>
           </div>
-          <h1 className="text-[20px] font-black text-white tracking-tight">Absensi Wajah Aktif</h1>
-          <p className="text-[12px] text-[#8a8a9a]">Protokol Verifikasi Liveness & Pose Multi-Sudut.</p>
+          <h1 className="text-[20px] font-black text-slate-900 tracking-tight">Absensi Wajah Aktif</h1>
+          <p className="text-[12px] text-slate-500">Protokol Verifikasi Liveness & Pose Multi-Sudut.</p>
         </div>
 
         {/* Status Indicator */}
         {status && (
-          <div className="text-[#9b91e8] bg-[#9b91e8]/5 border border-[#9b91e8]/15 rounded-xl p-3 text-[12px] text-center font-medium animate-slide-up">
+          <div className="text-[#5b4dc7] bg-[#5b4dc7]/5 border border-[#5b4dc7]/15 rounded-xl p-3 text-[12px] text-center font-semibold animate-slide-up">
             {status}
           </div>
         )}
 
         {/* Error Feedback */}
         {errorMsg && (
-          <div className="text-red-400 bg-red-500/5 border border-red-500/15 rounded-xl p-3.5 text-[12px] text-center font-semibold animate-shake">
+          <div className="text-red-600 bg-red-500/5 border border-red-500/15 rounded-xl p-3.5 text-[12px] text-center font-semibold animate-shake">
             ⚠️ {errorMsg}
           </div>
         )}
 
         {/* Content Box */}
         <div className="flex flex-col items-center justify-center rounded-xl p-4 min-h-[250px] relative overflow-hidden"
-          style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.04)' }}>
+          style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)' }}>
           
           {challengeStep === -1 && (
             <div className="text-center space-y-4 py-6">
               <span className="text-4xl block">🛡️</span>
               <div className="space-y-1.5">
-                <h3 className="text-[14px] font-bold text-white">Sistem Absensi Aman</h3>
-                <p className="text-[11px] text-[#6b6b7a] max-w-[280px] mx-auto">
+                <h3 className="text-[14px] font-bold text-slate-800">Sistem Absensi Aman</h3>
+                <p className="text-[11px] text-slate-500 max-w-[280px] mx-auto">
                   Absensi memerlukan verifikasi liveness (pantulan cahaya layar) dan sensor gerakan kepala untuk menghindari manipulasi foto/video.
                 </p>
               </div>
@@ -368,7 +368,7 @@ export default function ScanAttendancePage() {
             <div className="w-full flex flex-col items-center gap-4">
               {/* Webcam frame */}
               <div className="relative w-full max-w-[420px] aspect-square rounded-2xl overflow-hidden bg-black shadow-inner"
-                style={{ border: '2px solid rgba(255,255,255,0.08)' }}>
+                style={{ border: '2px solid rgba(91,77,199,0.1)' }}>
                 <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
                 
                 {/* Direction Guide Overlay */}
@@ -413,7 +413,7 @@ export default function ScanAttendancePage() {
 
               {/* Action Prompt or Instruction */}
               <div className="text-center space-y-3 w-full">
-                <p className="text-[13px] font-black text-white leading-snug">
+                <p className="text-[13px] font-black text-slate-800 leading-snug">
                   {challengeStep === 0 && 'Hadap Depan: Posisikan wajah Anda lurus ke kamera'}
                   {challengeStep === 1 && `Tantangan Liveness: Menguji pantulan warna (${flashColorName.toUpperCase()})`}
                   {challengeStep === 2 && 'Hadap Kiri: Putar kepala Anda ke KIRI (45 derajat)'}
@@ -453,18 +453,18 @@ export default function ScanAttendancePage() {
 
           {challengeStep === 5 && studentInfo && (
             <div className="text-center space-y-4 py-4 w-full animate-fade-in">
-              <div className="h-16 w-16 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center justify-center mx-auto text-emerald-400 text-3xl">
+              <div className="h-16 w-16 bg-emerald-50 border border-emerald-250 rounded-full flex items-center justify-center mx-auto text-emerald-600 text-3xl">
                 ✓
               </div>
               <div className="space-y-1.5">
-                <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full uppercase tracking-wider">
+                <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full uppercase tracking-wider">
                   {studentInfo.is_duplicate ? 'Sudah Absen' : 'Absen Berhasil'}
                 </span>
-                <h3 className="text-lg font-black text-white tracking-tight mt-2">{studentInfo.name}</h3>
-                <p className="text-[12px] text-[#8a8a9a] font-medium leading-relaxed">
+                <h3 className="text-lg font-black text-slate-900 tracking-tight mt-2">{studentInfo.name}</h3>
+                <p className="text-[12px] text-slate-600 font-medium leading-relaxed">
                   Kelas {studentInfo.class_name} | No Absen {studentInfo.absent_no}
                 </p>
-                <p className="text-[11px] text-[#6b6b7a]">
+                <p className="text-[11px] text-slate-500">
                   Absen dicatat pada pukul {new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </p>
               </div>
@@ -473,8 +473,8 @@ export default function ScanAttendancePage() {
                 <button onClick={() => {
                   setChallengeStep(-1);
                   setStudentInfo(null);
-                }} className="text-[#8a8a9a] hover:text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all cursor-pointer"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                }} className="text-slate-500 hover:text-slate-700 text-xs font-bold px-5 py-2.5 rounded-xl transition-all cursor-pointer"
+                  style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.06)' }}>
                   Absen Kembali
                 </button>
                 <button onClick={() => router.push('/')}
@@ -489,10 +489,10 @@ export default function ScanAttendancePage() {
 
         <canvas ref={canvasRef} className="hidden" />
 
-        <div className="pt-2 flex justify-between items-center text-[11px] text-[#5b5b6b] font-semibold"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="pt-2 flex justify-between items-center text-[11px] text-slate-400 font-semibold"
+          style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
           <span>Sessiof Verification Protocol</span>
-          <button onClick={() => router.push('/')} className="hover:text-white transition-colors cursor-pointer">
+          <button onClick={() => router.push('/')} className="hover:text-slate-700 transition-colors cursor-pointer">
             Batal & Keluar
           </button>
         </div>
