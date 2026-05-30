@@ -80,7 +80,7 @@ export default function RosterPage() {
 
   const fetchServerStatus = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/status');
+      const res = await fetch('http://localhost:5000/api/status', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setServerStatus(data);
@@ -92,7 +92,7 @@ export default function RosterPage() {
 
   const fetchAttendance = async () => {
     try {
-      const res = await fetch('/api/attendance');
+      const res = await fetch('/api/attendance', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setAttendanceRecords(data);
@@ -104,7 +104,7 @@ export default function RosterPage() {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/settings');
+      const res = await fetch('/api/settings', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setSettings(data);

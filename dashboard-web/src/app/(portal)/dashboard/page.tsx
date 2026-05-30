@@ -121,7 +121,7 @@ export default function DashboardPage() {
 
   const fetchAttendance = async () => {
     try {
-      const res = await fetch('/api/attendance');
+      const res = await fetch('/api/attendance', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         const active = data.filter((r: any) => r.Status !== 'Dihapus');
@@ -132,7 +132,7 @@ export default function DashboardPage() {
 
   const fetchServerStatus = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/status');
+      const res = await fetch('http://localhost:5000/api/status', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setServerStatus(data);

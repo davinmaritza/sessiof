@@ -62,8 +62,8 @@ export default function AttendancePage() {
   const fetchAttendance = async () => {
     try {
       const [resAtt, resStat] = await Promise.all([
-        fetch('/api/attendance'),
-        fetch('http://localhost:5000/api/status')
+        fetch('/api/attendance', { cache: 'no-store' }),
+        fetch('http://localhost:5000/api/status', { cache: 'no-store' })
       ]);
       if (resAtt.ok && resStat.ok) {
         const attData = await resAtt.json();

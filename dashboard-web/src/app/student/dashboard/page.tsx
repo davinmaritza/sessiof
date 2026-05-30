@@ -40,7 +40,7 @@ export default function StudentDashboard() {
 
   const fetchAttendance = async (studentName: string) => {
     try {
-      const res = await fetch('/api/attendance');
+      const res = await fetch('/api/attendance', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         const filtered = data.filter((r: any) => r.Nama === studentName && r.Status !== 'Dihapus');
@@ -51,7 +51,7 @@ export default function StudentDashboard() {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/settings');
+      const res = await fetch('/api/settings', { cache: 'no-store' });
       if (res.ok) setSettings(await res.json());
     } catch (error) { console.error('Error fetching settings:', error); }
   };

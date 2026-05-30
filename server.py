@@ -143,12 +143,21 @@ def log_attendance(name):
             if df_existing.empty or "Nama" not in df_existing.columns:
                 df_new.to_excel(EXCEL_FILE, index=False)
             else:
-                sudah_absen = df_existing[
-                    (df_existing["Nama"] == name) & 
-                    (pd.to_numeric(df_existing["Tanggal"], errors='coerce') == int(tanggal)) & 
-                    (df_existing["Bulan"] == bulan) & 
-                    (pd.to_numeric(df_existing["Tahun"], errors='coerce') == int(tahun))
-                ]
+                if "Status" in df_existing.columns:
+                    sudah_absen = df_existing[
+                        (df_existing["Nama"] == name) & 
+                        (pd.to_numeric(df_existing["Tanggal"], errors='coerce') == int(tanggal)) & 
+                        (df_existing["Bulan"] == bulan) & 
+                        (pd.to_numeric(df_existing["Tahun"], errors='coerce') == int(tahun)) &
+                        (df_existing["Status"] != "Dihapus")
+                    ]
+                else:
+                    sudah_absen = df_existing[
+                        (df_existing["Nama"] == name) & 
+                        (pd.to_numeric(df_existing["Tanggal"], errors='coerce') == int(tanggal)) & 
+                        (df_existing["Bulan"] == bulan) & 
+                        (pd.to_numeric(df_existing["Tahun"], errors='coerce') == int(tahun))
+                    ]
                 if not sudah_absen.empty:
                     sudah_absen_hari_ini = True
                 else:
