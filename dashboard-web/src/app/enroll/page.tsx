@@ -268,7 +268,7 @@ export default function EnrollPage() {
               
               {useCamera ? (
                 <div className="w-full flex flex-col items-center gap-3 relative z-10">
-                  <div className="relative w-48 h-48 rounded-xl overflow-hidden bg-black" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div className="relative w-full max-w-[280px] aspect-square rounded-xl overflow-hidden bg-black" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
                     <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
                     
                     {/* Countdown Overlay */}
@@ -306,7 +306,7 @@ export default function EnrollPage() {
                   <div className="flex gap-2">
                     {capturedImages.map((imgUrl, idx) => (
                       <div key={idx} className="relative flex flex-col items-center">
-                        <img src={imgUrl} alt={`Pose ${idx}`} className="w-14 h-14 object-cover rounded-lg border border-primary/30" />
+                        <img src={imgUrl} alt={`Pose ${idx}`} className="w-16 h-16 object-cover rounded-lg border border-primary/30" />
                         <span className="text-[8px] font-bold text-[#8a8a9a] mt-1">
                           {idx === 0 ? "Depan" : idx === 1 ? "Kiri" : "Kanan"}
                         </span>
@@ -320,7 +320,7 @@ export default function EnrollPage() {
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-3 text-center relative z-10">
-                  <svg className="w-8 h-8 text-[#4a4a5a]" fill="none" stroke="currentColor" strokeWidth="1.2" viewBox="0 0 24 24">
+                  <svg className="w-12 h-12 text-[#4a4a5a]" fill="none" stroke="currentColor" strokeWidth="1.2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                   </svg>
                   <p className="text-[11px] font-medium text-[#6b6b7a]">Verifikasi wajah multi-pose & liveness</p>
