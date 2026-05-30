@@ -9,9 +9,12 @@ export default function EnrollPage() {
   const [name, setName] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
   const [absentNo, setAbsentNo] = useState('');
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [useCamera, setUseCamera] = useState(false);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedImages, setCapturedImages] = useState<string[]>([]);
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
+  const [challengeStep, setChallengeStep] = useState<number>(-1); // -1: inactive, 0: center/flash, 1: left, 2: right, 3: completed
+  const [flashColor, setFlashColor] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -28,8 +31,11 @@ export default function EnrollPage() {
   useEffect(() => { return () => { stopCamera(); }; }, []);
 
   const startCamera = async () => {
-    setCapturedImage(null);
-    setUploadFile(null);
+    setCapturedImages([]);
+    setUploadFiles([]);
+    setChallengeStep(0);
+    setFlashColor(null);
+    setCountdown(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 480, height: 480, facingMode: 'user' } });
       streamRef.current = stream;
@@ -38,6 +44,7 @@ export default function EnrollPage() {
     } catch (err) {
       setStatus('Gagal mengakses kamera. Pastikan izin kamera aktif.');
       setUseCamera(false);
+      setChallengeStep(-1);
     }
   };
 
@@ -55,7 +62,7 @@ export default function EnrollPage() {
     setUseCamera(false);
   };
 
-  const capturePhoto = () => {
+  const capturePhotoChallenge = () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -68,13 +75,58 @@ export default function EnrollPage() {
         canvas.height = 300;
         ctx.drawImage(video, sx, sy, size, size, 0, 0, 300, 300);
         const dataUrl = canvas.toDataURL('image/jpeg');
-        setCapturedImage(dataUrl);
+        
         fetch(dataUrl).then(res => res.blob()).then(blob => {
-          setUploadFile(new File([blob], 'selfie.jpg', { type: 'image/jpeg' }));
+          const filename = challengeStep === 0 ? 'center.jpg' : challengeStep === 1 ? 'left.jpg' : 'right.jpg';
+          const file = new File([blob], filename, { type: 'image/jpeg' });
+          setUploadFiles(prev => [...prev, file]);
+          setCapturedImages(prev => [...prev, dataUrl]);
+          
+          if (challengeStep === 0) {
+            setChallengeStep(1);
+          } else if (challengeStep === 1) {
+            setChallengeStep(2);
+          } else if (challengeStep === 2) {
+            setChallengeStep(3);
+            stopCamera();
+          }
         });
-        stopCamera();
       }
     }
+  };
+
+  const runFlashChallenge = () => {
+    if (challengeStep !== 0) {
+      capturePhotoChallenge();
+      return;
+    }
+    
+    setCountdown(3);
+    const colors = [
+      'rgba(255, 0, 128, 0.8)',
+      'rgba(0, 128, 255, 0.8)',
+      'rgba(255, 230, 0, 0.8)',
+      'rgba(147, 51, 234, 0.8)'
+    ];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    
+    let currentCount = 3;
+    const interval = setInterval(() => {
+      currentCount -= 1;
+      if (currentCount > 0) {
+        setCountdown(currentCount);
+      } else {
+        clearInterval(interval);
+        setCountdown(null);
+        setFlashColor(randomColor);
+        setTimeout(() => {
+          capturePhotoChallenge();
+          setTimeout(() => {
+            setFlashColor(null);
+          }, 400);
+        }, 100);
+      }
+    }, 800);
   };
 
   const handleEnrollSubmit = async (e: React.FormEvent) => {
@@ -83,8 +135,8 @@ export default function EnrollPage() {
       setStatus('Lengkapi seluruh formulir data diri.');
       return;
     }
-    if (!uploadFile) {
-      setStatus('Ambil foto wajah atau unggah file foto.');
+    if (uploadFiles.length < 3) {
+      setStatus('Ambil seluruh 3 pose wajah (Depan, Kiri, Kanan) terlebih dahulu.');
       return;
     }
 
@@ -104,18 +156,21 @@ export default function EnrollPage() {
         return;
       }
 
-      setStatus('Mengunggah dan memindai foto wajah...');
-      const formData = new FormData();
-      formData.append('name', name.trim());
-      formData.append('image', uploadFile);
-
-      const resPhoto = await fetch('http://localhost:5000/api/upload-face', { method: 'POST', body: formData });
-      const dataPhoto = await resPhoto.json();
-      if (!resPhoto.ok) {
-        await fetch(`http://localhost:5000/api/students/${name.trim()}`, { method: 'DELETE' });
-        setStatus(`Wajah tidak terdeteksi: ${dataPhoto.error || 'Format gambar salah.'}`);
-        setIsSubmitting(false);
-        return;
+      // Upload all 3 photos sequentially
+      for (let i = 0; i < uploadFiles.length; i++) {
+        setStatus(`Mengunggah foto pose ke-${i+1} dari 3...`);
+        const formData = new FormData();
+        formData.append('name', name.trim());
+        formData.append('image', uploadFiles[i]);
+        
+        const resPhoto = await fetch('http://localhost:5000/api/upload-face', { method: 'POST', body: formData });
+        const dataPhoto = await resPhoto.json();
+        if (!resPhoto.ok) {
+          await fetch(`http://localhost:5000/api/students/${name.trim()}`, { method: 'DELETE' });
+          setStatus(`Pendaftaran gagal pada pose ke-${i+1}: ${dataPhoto.error || 'Format gambar salah.'}`);
+          setIsSubmitting(false);
+          return;
+        }
       }
 
       setStatus('Menyinkronkan pengenal wajah AI...');
@@ -124,7 +179,7 @@ export default function EnrollPage() {
       if (resTrain.ok) {
         setStatus('Pendaftaran berhasil. Wajah Anda terdaftar di sistem.');
         setName(''); setAbsentNo(''); setSelectedClass('');
-        setCapturedImage(null); setUploadFile(null);
+        setCapturedImages([]); setUploadFiles([]); setChallengeStep(-1);
       } else {
         setStatus('Data tersimpan, namun sinkronisasi AI gagal. Hubungi Admin.');
       }
@@ -159,10 +214,10 @@ export default function EnrollPage() {
 
         {status && (
           <div className={`rounded-lg p-3.5 text-[13px] font-medium text-center animate-slide-up ${
-            status.includes('berhasil') ? 'text-emerald-400' : status.includes('Gagal') || status.includes('tidak') ? 'text-red-400' : 'text-[#7c6fe0]'
+            status.includes('berhasil') ? 'text-emerald-400' : status.includes('Gagal') || status.includes('tidak') || status.includes('ditolak') ? 'text-red-400' : 'text-[#7c6fe0]'
           }`} style={{ 
-            background: status.includes('berhasil') ? 'rgba(45,157,120,0.08)' : status.includes('Gagal') || status.includes('tidak') ? 'rgba(220,74,70,0.08)' : 'rgba(91,77,199,0.08)',
-            border: `1px solid ${status.includes('berhasil') ? 'rgba(45,157,120,0.15)' : status.includes('Gagal') || status.includes('tidak') ? 'rgba(220,74,70,0.15)' : 'rgba(91,77,199,0.15)'}`
+            background: status.includes('berhasil') ? 'rgba(45,157,120,0.08)' : status.includes('Gagal') || status.includes('tidak') || status.includes('ditolak') ? 'rgba(220,74,70,0.08)' : 'rgba(91,77,199,0.08)',
+            border: `1px solid ${status.includes('berhasil') ? 'rgba(45,157,120,0.15)' : status.includes('Gagal') || status.includes('tidak') || status.includes('ditolak') ? 'rgba(220,74,70,0.15)' : 'rgba(91,77,199,0.15)'}`
           }}>
             {status}
           </div>
@@ -198,37 +253,74 @@ export default function EnrollPage() {
               </div>
             </div>
 
-            {/* Camera / Upload */}
-            <div className="flex flex-col items-center justify-center rounded-xl p-5 relative min-h-[200px]"
+            {/* Camera / Challenge Preview */}
+            <div className="flex flex-col items-center justify-center rounded-xl p-5 relative min-h-[220px] overflow-hidden"
               style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              
+              {/* Active Color Flash Overlay */}
+              {flashColor && (
+                <div className="absolute inset-0 z-30 pointer-events-none transition-all duration-100"
+                  style={{ backgroundColor: flashColor }} />
+              )}
+              
               {useCamera ? (
-                <div className="w-full flex flex-col items-center gap-3">
-                  <video ref={videoRef} autoPlay playsInline className="w-48 h-48 object-cover rounded-xl bg-black scale-x-[-1]"
-                    style={{ border: '1px solid rgba(255,255,255,0.1)' }} />
-                  <button type="button" onClick={capturePhoto}
-                    className="text-white font-medium text-[12px] px-4 py-2 rounded-lg transition-all flex items-center gap-2"
-                    style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
-                    </svg>
-                    Ambil Gambar
-                  </button>
+                <div className="w-full flex flex-col items-center gap-3 relative z-10">
+                  <div className="relative w-48 h-48 rounded-xl overflow-hidden bg-black" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
+                    
+                    {/* Countdown Overlay */}
+                    {countdown !== null && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
+                        <span className="text-4xl font-black text-white animate-ping">{countdown}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Active Instruction Prompt */}
+                  <div className="text-center space-y-1">
+                    <span className="text-[9px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      Langkah {challengeStep + 1} dari 3
+                    </span>
+                    <p className="text-[12px] font-bold text-white leading-tight">
+                      {challengeStep === 0 && "Hadap Depan: Tetap tegak dan perhatikan kamera"}
+                      {challengeStep === 1 && "Hadap Kiri: Putar kepala Anda sedikit ke KIRI"}
+                      {challengeStep === 2 && "Hadap Kanan: Putar kepala Anda sedikit ke KANAN"}
+                    </p>
+                  </div>
+
+                  {countdown === null && !flashColor && (
+                    <button type="button" onClick={runFlashChallenge}
+                      className="text-white font-medium text-[11px] px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                      style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}>
+                      {challengeStep === 0 && "Mulai Pindai Depan (Flash)"}
+                      {challengeStep === 1 && "Ambil Foto Kiri"}
+                      {challengeStep === 2 && "Ambil Foto Kanan"}
+                    </button>
+                  )}
                 </div>
-              ) : capturedImage ? (
-                <div className="flex flex-col items-center gap-3">
-                  <img src={capturedImage} alt="Foto" className="w-48 h-48 object-cover rounded-xl" style={{ border: '2px solid rgba(91,77,199,0.3)' }} />
-                  <button type="button" onClick={startCamera} className="text-[#8a8a9a] hover:text-white text-[12px] font-medium px-3 py-1.5 rounded-lg transition-all"
+              ) : challengeStep === 3 ? (
+                <div className="flex flex-col items-center gap-3 relative z-10">
+                  <div className="flex gap-2">
+                    {capturedImages.map((imgUrl, idx) => (
+                      <div key={idx} className="relative flex flex-col items-center">
+                        <img src={imgUrl} alt={`Pose ${idx}`} className="w-14 h-14 object-cover rounded-lg border border-primary/30" />
+                        <span className="text-[8px] font-bold text-[#8a8a9a] mt-1">
+                          {idx === 0 ? "Depan" : idx === 1 ? "Kiri" : "Kanan"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" onClick={startCamera} className="text-[#8a8a9a] hover:text-white text-[11px] font-medium px-3 py-1.5 rounded-lg transition-all cursor-pointer"
                     style={{ background: 'rgba(255,255,255,0.05)' }}>
-                    Ulangi Foto
+                    Ulangi Pindai Wajah
                   </button>
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-3 text-center">
+                <div className="flex flex-col items-center gap-3 text-center relative z-10">
                   <svg className="w-8 h-8 text-[#4a4a5a]" fill="none" stroke="currentColor" strokeWidth="1.2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                   </svg>
-                  <p className="text-[11px] font-medium text-[#6b6b7a]">Verifikasi foto wajah</p>
+                  <p className="text-[11px] font-medium text-[#6b6b7a]">Verifikasi wajah multi-pose & liveness</p>
                   <div className="flex flex-wrap gap-2 justify-center">
                     <button type="button" onClick={startCamera} disabled={isSubmitting}
                       className="text-white font-medium text-[11px] px-3.5 py-2 rounded-lg transition-all cursor-pointer flex items-center gap-1.5"
@@ -236,23 +328,8 @@ export default function EnrollPage() {
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
                       </svg>
-                      Kamera
+                      Mulai Pindai
                     </button>
-                    <label className="text-[#b4b4c4] font-medium text-[11px] px-3.5 py-2 rounded-lg transition-all cursor-pointer flex items-center gap-1.5"
-                      style={{ background: 'rgba(255,255,255,0.06)' }}>
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                      </svg>
-                      Unggah
-                      <input type="file" accept="image/*" onChange={(e) => {
-                        if (e.target.files && e.target.files.length > 0) {
-                          const file = e.target.files[0];
-                          setUploadFile(file);
-                          setCapturedImage(URL.createObjectURL(file));
-                          stopCamera();
-                        }
-                      }} className="hidden" disabled={isSubmitting} />
-                    </label>
                   </div>
                 </div>
               )}
