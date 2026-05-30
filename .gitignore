@@ -1,0 +1,31 @@
+# Python Virtual Environment
+.venv/
+__pycache__/
+*.pyc
+
+# Node Modules and Build Files
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Sensitive Face Attendance Data
+dataset/
+trainer.yml
+names.npy
+students_metadata.json
+attendance.xlsx
+admin_account.json
+agenda_kalender.json
+
+# Local Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS Files
+.DS_Store
+Thumbs.db
