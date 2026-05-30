@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import * as XLSX from 'xlsx';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     // Jalur ke file Excel (attendance.xlsx berada di root project, di atas folder dashboard-web)

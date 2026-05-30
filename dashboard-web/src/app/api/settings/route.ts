@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+
 // Kita simpan settings.json di root (di samping attendance.xlsx)
 const getSettingsPath = () => path.resolve(process.cwd(), '../settings.json');
 
