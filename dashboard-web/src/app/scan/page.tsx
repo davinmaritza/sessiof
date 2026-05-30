@@ -316,7 +316,7 @@ export default function ScanAttendancePage() {
       <div className="absolute top-[-25%] right-[-15%] w-[600px] h-[600px] rounded-full pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(91,77,199,0.12) 0%, transparent 70%)' }} />
 
-      <div className="max-w-md w-full rounded-2xl p-7 space-y-6 animate-scale-in relative z-10"
+      <div className="max-w-xl w-full rounded-2xl p-7 space-y-6 animate-scale-in relative z-10"
         style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', backdropFilter: 'blur(25px)' }}>
         
         {/* Header */}
@@ -367,7 +367,7 @@ export default function ScanAttendancePage() {
           {challengeStep >= 0 && challengeStep <= 4 && (
             <div className="w-full flex flex-col items-center gap-4">
               {/* Webcam frame */}
-              <div className="relative w-full max-w-[260px] aspect-square rounded-2xl overflow-hidden bg-black shadow-inner"
+              <div className="relative w-full max-w-[420px] aspect-square rounded-2xl overflow-hidden bg-black shadow-inner"
                 style={{ border: '2px solid rgba(255,255,255,0.08)' }}>
                 <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
                 

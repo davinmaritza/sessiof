@@ -206,7 +206,7 @@ export default function EnrollPage() {
       <div className="absolute top-[-25%] right-[-15%] w-[600px] h-[600px] rounded-full pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(91,77,199,0.1) 0%, transparent 70%)' }} />
 
-      <div className="max-w-xl w-full rounded-2xl p-7 space-y-5 animate-scale-in relative z-10"
+      <div className="max-w-4xl w-full rounded-2xl p-7 space-y-5 animate-scale-in relative z-10"
         style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)' }}>
         
         {/* Header */}
@@ -268,7 +268,7 @@ export default function EnrollPage() {
               
               {useCamera ? (
                 <div className="w-full flex flex-col items-center gap-3 relative z-10">
-                  <div className="relative w-full max-w-[280px] aspect-square rounded-xl overflow-hidden bg-black" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div className="relative w-full max-w-[420px] aspect-square rounded-xl overflow-hidden bg-black" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
                     <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
                     
                     {/* Countdown Overlay */}

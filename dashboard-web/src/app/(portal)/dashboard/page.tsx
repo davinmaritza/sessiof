@@ -324,7 +324,7 @@ export default function DashboardPage() {
         {serverStatus.camera_running && (
           <div className="rounded-xl p-5 flex flex-col md:flex-row gap-5 items-center animate-slide-up"
             style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-panel)' }}>
-            <div className="w-full md:w-2/3 max-w-lg aspect-video rounded-lg overflow-hidden bg-black relative">
+            <div className="w-full md:w-2/3 max-w-3xl aspect-video rounded-lg overflow-hidden bg-black relative">
               <img src="http://localhost:5000/api/video_feed" alt="Live Camera Feed" className="w-full h-full object-cover" />
               <span className="absolute top-3 left-3 bg-red-500 text-white text-[10px] font-semibold px-2 py-0.5 rounded-md flex items-center gap-1.5 animate-pulse-soft">
                 <span className="w-1.5 h-1.5 bg-white rounded-full"></span> Live
