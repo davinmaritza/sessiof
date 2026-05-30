@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import * as XLSX from 'xlsx';
 
 interface AttendanceRecord {
   Nama: string;
@@ -53,6 +54,36 @@ export default function StudentDashboard() {
       const res = await fetch('/api/settings');
       if (res.ok) setSettings(await res.json());
     } catch (error) { console.error('Error fetching settings:', error); }
+  };
+
+  const exportToExcel = () => {
+    const dataToExport = records.map(r => ({
+      'Nama Siswa': r.Nama,
+      'Kelas': r.Kelas || studentInfo.className,
+      'No Absen': r['No Absen'] || studentInfo.absentNo,
+      'Hari': r.Hari,
+      'Tanggal': `${r.Tanggal} ${r.Bulan} ${r.Tahun}`,
+      'Waktu Absen': r['Waktu Absen'] || '-',
+      'Status': r.Status || 'Hadir'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Kehadiran');
+    
+    // Fit column widths
+    const max_len = Math.max(...dataToExport.map(r => r['Nama Siswa'].length), 15);
+    worksheet['!cols'] = [
+      { wch: max_len },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 12 }
+    ];
+
+    XLSX.writeFile(workbook, `Laporan_Kehadiran_${studentInfo.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const handleLogout = () => {
@@ -209,10 +240,24 @@ export default function StudentDashboard() {
         <div className="rounded-xl p-5 space-y-4 animate-slide-up stagger-4"
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
           <div className="flex justify-between items-center pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <h3 className="text-[14px] font-semibold text-white">Riwayat Presensi</h3>
-            <span className="text-[11px] font-medium px-2.5 py-1 rounded-md" style={{ background: 'rgba(255,255,255,0.05)', color: '#8a8a9a' }}>
-              {records.length} Hari
-            </span>
+            <div className="flex items-center gap-2">
+              <h3 className="text-[14px] font-semibold text-white">Riwayat Presensi</h3>
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ background: 'rgba(255,255,255,0.05)', color: '#8a8a9a' }}>
+                {records.length} Hari
+              </span>
+            </div>
+            {records.length > 0 && (
+              <button 
+                onClick={exportToExcel}
+                className="text-[11px] font-bold text-white bg-primary hover:bg-primary-light transition-all px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
+                style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Unduh Excel
+              </button>
+            )}
           </div>
           <div className="rounded-lg overflow-hidden max-h-72 overflow-y-auto" style={{ border: '1px solid rgba(255,255,255,0.05)' }}>
             <table className="w-full text-left text-[12px] whitespace-nowrap">

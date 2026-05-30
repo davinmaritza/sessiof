@@ -10,7 +10,9 @@ const defaultSettings = {
   departureTime: '15:00',
   desktopNotifications: false,
   darkMode: false,
-  autoBackup: false
+  autoBackup: false,
+  livenessEnabled: true,
+  livenessThreshold: 50
 };
 
 export async function GET() {

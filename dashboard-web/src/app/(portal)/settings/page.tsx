@@ -8,7 +8,9 @@ export default function SettingsPage() {
     departureTime: '15:00',
     desktopNotifications: false,
     darkMode: false,
-    autoBackup: false
+    autoBackup: false,
+    livenessEnabled: true,
+    livenessThreshold: 50
   });
   const [status, setStatus] = useState('');
 
@@ -110,6 +112,38 @@ export default function SettingsPage() {
                 <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${settings.darkMode ? 'right-0.5' : 'left-0.5'}`}></div>
               </div>
             </div>
+
+            <div
+              onClick={() => handleChange('livenessEnabled', !settings.livenessEnabled)}
+              className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <div>
+                <h4 className="font-bold text-slate-900 text-xs">Verifikasi Liveness (Anti-Spoofing)</h4>
+                <p className="text-[10px] text-slate-500 font-medium mt-0.5">Mencegah manipulasi absensi menggunakan foto/layar HP</p>
+              </div>
+              <div className={`w-10 h-5 rounded-full relative shadow-inner transition-colors ${settings.livenessEnabled ? 'bg-primary' : 'bg-slate-200'}`}>
+                <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${settings.livenessEnabled ? 'right-0.5' : 'left-0.5'}`}></div>
+              </div>
+            </div>
+
+            {settings.livenessEnabled && (
+              <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-2">
+                <div className="flex justify-between items-center">
+                  <h4 className="font-bold text-slate-900 text-xs">Sensitivitas Liveness (Threshold Laplacian)</h4>
+                  <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{settings.livenessThreshold}</span>
+                </div>
+                <p className="text-[10px] text-slate-500 font-medium">Nilai lebih tinggi mendeteksi kejelasan wajah secara lebih ketat untuk menghindari cetakan foto kertas.</p>
+                <input
+                  type="range"
+                  min="20"
+                  max="120"
+                  step="5"
+                  value={settings.livenessThreshold}
+                  onChange={(e) => handleChange('livenessThreshold', parseInt(e.target.value))}
+                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary"
+                />
+              </div>
+            )}
 
             <div
               onClick={() => handleChange('autoBackup', !settings.autoBackup)}

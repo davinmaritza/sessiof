@@ -80,6 +80,24 @@ def save_metadata(metadata):
     with open(METADATA_FILE, 'w') as f:
         json.dump(metadata, f, indent=4)
 
+def load_settings():
+    settings_path = "settings.json"
+    if os.path.exists(settings_path):
+        try:
+            with open(settings_path, 'r') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {
+        "arrivalTime": "06:30",
+        "departureTime": "15:00",
+        "desktopNotifications": False,
+        "darkMode": False,
+        "autoBackup": False,
+        "livenessEnabled": True,
+        "livenessThreshold": 50
+    }
+
 def get_student_dir(class_name, absent_no, name):
     safe_class = class_name.replace("/", "-").replace("\\", "-")
     safe_name = name.replace("/", "-").replace("\\", "-")
@@ -194,10 +212,21 @@ def attendance_loop():
         # Landmark history untuk passive liveness verification
         landmark_history = []
         
+        last_settings_load = 0
+        settings = load_settings()
+        
         while not stop_camera_event.is_set():
             success, frame = cap.read()
             if not success or frame is None:
                 break
+                
+            now_time = time.time()
+            if now_time - last_settings_load > 3.0:
+                settings = load_settings()
+                last_settings_load = now_time
+                
+            liveness_enabled = settings.get("livenessEnabled", True)
+            liveness_threshold = float(settings.get("livenessThreshold", 50.0))
                 
             h, w = frame.shape[:2]
             detector.setInputSize((w, h))
@@ -233,8 +262,11 @@ def attendance_loop():
                         coord_vars = np.var(arr, axis=0)
                         mean_var = np.mean(coord_vars)
                         
-                    # Kriteria Liveness: Laplacian var >= 60 dan mean_var >= 0.03
-                    is_live = (laplacian_var >= 50.0) and (mean_var >= 0.03)
+                    # Kriteria Liveness berdasarkan Settings
+                    if liveness_enabled:
+                        is_live = (laplacian_var >= liveness_threshold) and (mean_var >= 0.03)
+                    else:
+                        is_live = True
                     
                     # C. Pengenalan Wajah dengan SFace
                     aligned_face = recognizer.alignCrop(frame, face)
@@ -598,6 +630,25 @@ def upload_face():
     
     if faces is None or len(faces) == 0:
         return jsonify({"error": "Wajah tidak terdeteksi dalam foto! Pastikan wajah terlihat jelas."}), 400
+        
+    # Validasi duplikasi wajah dengan database
+    load_templates()
+    if templates:
+        aligned_face = recognizer.alignCrop(img, faces[0])
+        query_feat = recognizer.feature(aligned_face)
+        best_match = None
+        max_score = -1.0
+        for registered_name, feat_list in templates.items():
+            if registered_name.lower().replace(" ", "") == name.lower().replace(" ", ""):
+                continue
+            for feat in feat_list:
+                score = recognizer.match(query_feat, feat, cv2.FaceRecognizerSF_FR_COSINE)
+                if score > max_score:
+                    max_score = score
+                    best_match = registered_name
+                    
+        if max_score > 0.35:
+            return jsonify({"error": f"Wajah ini sudah terdaftar atas nama '{best_match}'. Pendaftaran ditolak untuk menghindari duplikasi!"}), 400
         
     metadata = load_metadata()
     info = metadata.get(name, {})
