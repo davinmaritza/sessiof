@@ -551,6 +551,54 @@ def delete_student(name):
     
     del metadata[name]
     save_metadata(metadata)
+    
+    # Rebuild embeddings model to remove deleted student's templates
+    try:
+        embeddings_list = []
+        name_list = []
+        if os.path.exists(DATASET_DIR):
+            classes = [c for c in os.listdir(DATASET_DIR) if os.path.isdir(os.path.join(DATASET_DIR, c))]
+            for cls in classes:
+                class_path = os.path.join(DATASET_DIR, cls)
+                student_folders = [s for s in os.listdir(class_path) if os.path.isdir(os.path.join(class_path, s))]
+                for folder in student_folders:
+                    parts = folder.split(" - ", 1)
+                    if len(parts) == 2:
+                        _, student_name = parts
+                        folder_path = os.path.join(class_path, folder)
+                        photos = [f for f in os.listdir(folder_path) if f.endswith(".jpg")]
+                        if len(photos) == 0:
+                            continue
+                        name_list.append(student_name)
+                        for img_name in photos:
+                            img_path = os.path.join(folder_path, img_name)
+                            img = cv2.imread(img_path)
+                            if img is not None:
+                                h, w = img.shape[:2]
+                                if w == 112 and h == 112:
+                                    feat = recognizer.feature(img)
+                                    embeddings_list.append((student_name, feat))
+                                else:
+                                    detector.setInputSize((w, h))
+                                    retval, faces = detector.detect(img)
+                                    if faces is not None:
+                                        aligned_face = recognizer.alignCrop(img, faces[0])
+                                        feat = recognizer.feature(aligned_face)
+                                        embeddings_list.append((student_name, feat))
+        if len(embeddings_list) > 0:
+            with open("embeddings.pkl", "wb") as f:
+                pickle.dump(embeddings_list, f)
+            np.save("names.npy", np.array(name_list))
+        else:
+            if os.path.exists("embeddings.pkl"):
+                os.remove("embeddings.pkl")
+            if os.path.exists("names.npy"):
+                os.remove("names.npy")
+        
+        load_templates()
+        print(f"Retrained templates successfully after deleting student '{name}'.")
+    except Exception as e:
+        print(f"Gagal retraining setelah menghapus siswa '{name}': {e}")
         
     return jsonify({"message": f"Siswa '{name}' berhasil dihapus."})
 
