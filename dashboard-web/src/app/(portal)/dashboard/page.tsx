@@ -452,8 +452,13 @@ export default function DashboardPage() {
                     <td className="py-3.5 px-5 font-mono font-medium" style={{ color: 'var(--text-title)' }}>{r['Waktu Absen']}</td>
                     <td className="py-3.5 px-5" style={{ color: 'var(--text-muted)' }}>{r.Tanggal} {r.Bulan}</td>
                     <td className="py-3.5 px-5 text-center">
-                      <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md" 
-                        style={{ background: 'var(--primary-surface)', color: 'var(--primary)' }}>Hadir</span>
+                      <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-md uppercase tracking-wider
+                        ${(r.Status || 'Hadir') === 'Hadir' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 
+                          ((r.Status || 'Hadir') === 'Alpa' ? 'bg-red-50 text-red-600 border border-red-100' : 
+                          ((r.Status || 'Hadir') === 'Izin' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 
+                          'bg-blue-50 text-blue-600 border border-blue-100'))}`}>
+                        {r.Status || 'Hadir'}
+                      </span>
                     </td>
                   </tr>
                 )) : (
