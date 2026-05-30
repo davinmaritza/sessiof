@@ -975,7 +975,12 @@ def verify_pose():
     _, faces = detector.detect(img)
     
     if faces is None or len(faces) == 0:
-        return jsonify({"error": "Wajah tidak terdeteksi! Silakan posisikan wajah dengan benar di depan kamera."}), 400
+        if pose == "left":
+            return jsonify({"error": "Wajah tidak terdeteksi! Pastikan wajah Anda terlihat oleh kamera saat menoleh ke KIRI (jangan menoleh terlalu jauh)."}), 400
+        elif pose == "right":
+            return jsonify({"error": "Wajah tidak terdeteksi! Pastikan wajah Anda terlihat oleh kamera saat menoleh ke KANAN (jangan menoleh terlalu jauh)."}), 400
+        else:
+            return jsonify({"error": "Wajah tidak terdeteksi! Silakan posisikan wajah Anda tepat di depan kamera."}), 400
         
     face = faces[0]
     rex, ley, nex = face[4], face[6], face[8]

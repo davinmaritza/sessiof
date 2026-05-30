@@ -59,6 +59,7 @@ export default function LandingPage() {
         </div>
         
         <nav className="hidden md:flex items-center gap-8 text-xs font-bold text-slate-655">
+          <Link href="/scan" className="hover:text-primary transition-all duration-200 hover:scale-105">Absensi Wajah</Link>
           <Link href="/enroll" className="hover:text-primary transition-all duration-200 hover:scale-105">Pendaftaran Mandiri</Link>
           <a href="https://github.com/davinmaritza/sessiof" target="_blank" className="hover:text-primary transition-all duration-200 hover:scale-105">Repositori Kode</a>
         </nav>
@@ -223,6 +224,7 @@ export default function LandingPage() {
       <footer className="max-w-7xl w-full mx-auto px-6 py-8 border-t border-slate-200/50 flex flex-col md:flex-row justify-between items-center gap-4 z-10 relative">
         <span className="text-[10px] font-bold text-slate-450">&copy; {new Date().getFullYear()} sessiof Face Intelligence. Hak Cipta Dilindungi.</span>
         <div className="flex items-center gap-6 text-[10px] font-bold text-slate-500">
+          <Link href="/scan" className="hover:text-primary transition-colors">Absensi Wajah</Link>
           <Link href="/login" className="hover:text-primary transition-colors">Masuk Admin</Link>
           <Link href="/enroll" className="hover:text-primary transition-colors">Daftar Mandiri</Link>
           <a href="https://github.com/davinmaritza/sessiof" target="_blank" className="hover:text-primary transition-colors">Repositori Kode</a>
