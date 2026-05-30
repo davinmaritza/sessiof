@@ -306,24 +306,6 @@ export default function DashboardPage() {
             <h2 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--text-title)' }}>Selamat Datang, Admin</h2>
             <p className="text-[13px] mt-1" style={{ color: 'var(--text-muted)' }}>Ringkasan aktivitas absensi hari ini.</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            {serverStatus.camera_running ? (
-              <button onClick={handleStopCamera} className="bg-red-500 hover:bg-red-600 text-white text-[13px] font-semibold px-4 py-2 rounded-lg transition-all flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z" />
-                </svg>
-                Hentikan Scan
-              </button>
-            ) : (
-              <button onClick={handleStartCamera} className="text-white text-[13px] font-semibold px-4 py-2 rounded-lg transition-all flex items-center gap-2"
-                style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}>
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-                </svg>
-                Mulai Absensi
-              </button>
-            )}
-          </div>
         </div>
 
         {actionStatus && (
