@@ -647,8 +647,9 @@ def upload_face():
                     max_score = score
                     best_match = registered_name
                     
-        if max_score > 0.35:
-            return jsonify({"error": f"Wajah ini sudah terdaftar atas nama '{best_match}'. Pendaftaran ditolak untuk menghindari duplikasi!"}), 400
+        print(f"DEBUG Duplikasi Wajah: Target={name}, Cocok={best_match}, Score={max_score}")
+        if max_score > 0.25:
+            return jsonify({"error": f"Wajah ini sangat mirip dengan '{best_match}' (Kemiripan: {int(max_score*100)}%). Pendaftaran ditolak untuk menghindari duplikasi!"}), 400
         
     metadata = load_metadata()
     info = metadata.get(name, {})
