@@ -195,7 +195,7 @@ export default function EnrollPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center p-5 antialiased relative overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1625 40%, #0f0f1a 100%)' }}>
+      style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #faf8ff 50%, #f5f3ff 100%)' }}>
       
       {/* Full-screen Active Color Flash Overlay */}
       {flashColor && (
@@ -204,26 +204,26 @@ export default function EnrollPage() {
       )}
       
       <div className="absolute top-[-25%] right-[-15%] w-[600px] h-[600px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(91,77,199,0.1) 0%, transparent 70%)' }} />
+        style={{ background: 'radial-gradient(circle, rgba(91,77,199,0.08) 0%, transparent 70%)' }} />
 
       <div className="max-w-4xl w-full rounded-2xl p-7 space-y-5 animate-scale-in relative z-10"
-        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)' }}>
+        style={{ background: 'rgba(255, 255, 255, 0.75)', border: '1px solid rgba(91, 77, 199, 0.08)', backdropFilter: 'blur(25px)', boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.05)' }}>
         
         {/* Header */}
-        <div className="text-center space-y-2 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="text-center space-y-2 pb-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
           <div className="mx-auto h-10 w-10 rounded-xl flex items-center justify-center mb-3"
             style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}>
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
             </svg>
           </div>
-          <h1 className="text-[20px] font-semibold text-white tracking-tight">Registrasi Wajah</h1>
-          <p className="text-[13px] text-[#8a8a9a]">Daftarkan data diri dan sampel wajah untuk sistem absensi.</p>
+          <h1 className="text-[20px] font-black text-slate-900 tracking-tight">Registrasi Wajah</h1>
+          <p className="text-[13px] text-slate-500">Daftarkan data diri dan sampel wajah untuk sistem absensi.</p>
         </div>
 
         {status && (
-          <div className={`rounded-lg p-3.5 text-[13px] font-medium text-center animate-slide-up ${
-            status.includes('berhasil') ? 'text-emerald-400' : status.includes('Gagal') || status.includes('tidak') || status.includes('ditolak') ? 'text-red-400' : 'text-[#7c6fe0]'
+          <div className={`rounded-lg p-3.5 text-[13px] font-semibold text-center animate-slide-up ${
+            status.includes('berhasil') ? 'text-emerald-600' : status.includes('Gagal') || status.includes('tidak') || status.includes('ditolak') ? 'text-red-650' : 'text-[#5b4dc7]'
           }`} style={{ 
             background: status.includes('berhasil') ? 'rgba(45,157,120,0.08)' : status.includes('Gagal') || status.includes('tidak') || status.includes('ditolak') ? 'rgba(220,74,70,0.08)' : 'rgba(91,77,199,0.08)',
             border: `1px solid ${status.includes('berhasil') ? 'rgba(45,157,120,0.15)' : status.includes('Gagal') || status.includes('tidak') || status.includes('ditolak') ? 'rgba(220,74,70,0.15)' : 'rgba(91,77,199,0.15)'}`
@@ -237,40 +237,64 @@ export default function EnrollPage() {
             {/* Form Fields */}
             <div className="space-y-3.5">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-medium text-[#8a8a9a] block tracking-wide">Nama Lengkap</label>
+                <label className="text-[11px] font-bold text-slate-600 block tracking-wide">Nama Lengkap</label>
                 <input type="text" placeholder="Ketik nama lengkap" value={name} onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-3 text-[13px] text-white font-medium rounded-xl"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  className="w-full px-3.5 py-3 text-[13px] text-slate-800 font-medium rounded-xl"
+                  style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.06)' }}
                   required disabled={isSubmitting} />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[11px] font-medium text-[#8a8a9a] block tracking-wide">Kelas</label>
+                <label className="text-[11px] font-bold text-slate-600 block tracking-wide">Kelas</label>
                 <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}
-                  className="w-full px-3.5 py-3 text-[13px] text-white font-medium rounded-xl"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  className="w-full px-3.5 py-3 text-[13px] text-slate-800 font-medium rounded-xl"
+                  style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.06)', color: '#334155' }}
                   required disabled={isSubmitting}>
-                  <option value="" disabled>Pilih Kelas</option>
-                  {classes.map((cls, idx) => (<option key={idx} value={cls.name}>{cls.name}</option>))}
+                  <option value="" disabled className="text-slate-500">Pilih Kelas</option>
+                  {classes.map((cls, idx) => (<option key={idx} value={cls.name} className="text-slate-800">{cls.name}</option>))}
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[11px] font-medium text-[#8a8a9a] block tracking-wide">Nomor Absen</label>
+                <label className="text-[11px] font-bold text-slate-600 block tracking-wide">Nomor Absen</label>
                 <input type="text" placeholder="Contoh: 15" value={absentNo} onChange={(e) => setAbsentNo(e.target.value)}
-                  className="w-full px-3.5 py-3 text-[13px] text-white font-medium rounded-xl"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  className="w-full px-3.5 py-3 text-[13px] text-slate-800 font-medium rounded-xl"
+                  style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.06)' }}
                   required disabled={isSubmitting} />
               </div>
             </div>
 
             {/* Camera / Challenge Preview */}
             <div className="flex flex-col items-center justify-center rounded-xl p-5 relative min-h-[220px] overflow-hidden"
-              style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.05)' }}>
               
               {useCamera ? (
                 <div className="w-full flex flex-col items-center gap-3 relative z-10">
-                  <div className="relative w-full max-w-[420px] aspect-square rounded-xl overflow-hidden bg-black" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div className="relative w-full max-w-[420px] aspect-square rounded-xl overflow-hidden bg-black shadow-inner" style={{ border: '2px solid rgba(91,77,199,0.1)' }}>
                     <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
                     
+                    {/* Direction Guide Overlay */}
+                    {countdown === null && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                        {challengeStep === 0 && (
+                          <div className="flex flex-col items-center justify-center bg-black/55 px-3.5 py-2 rounded-xl border border-white/10 backdrop-blur-md animate-pulse-soft">
+                            <span className="text-white text-2xl">🎯</span>
+                            <span className="text-[10px] font-black text-white uppercase tracking-widest mt-1 animate-pulse">Hadap Depan</span>
+                          </div>
+                        )}
+                        {challengeStep === 1 && (
+                          <div className="flex flex-col items-center justify-center bg-black/55 px-4 py-2.5 rounded-xl border border-primary/20 backdrop-blur-md animate-bounce-right">
+                            <span className="text-primary-light text-3xl font-black">→</span>
+                            <span className="text-[10px] font-black text-white uppercase tracking-widest mt-1">Menoleh Kiri</span>
+                          </div>
+                        )}
+                        {challengeStep === 2 && (
+                          <div className="flex flex-col items-center justify-center bg-black/55 px-4 py-2.5 rounded-xl border border-primary/20 backdrop-blur-md animate-bounce-left">
+                            <span className="text-primary-light text-3xl font-black">←</span>
+                            <span className="text-[10px] font-black text-white uppercase tracking-widest mt-1">Menoleh Kanan</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Countdown Overlay */}
                     {countdown !== null && (
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
@@ -281,10 +305,10 @@ export default function EnrollPage() {
                   
                   {/* Active Instruction Prompt */}
                   <div className="text-center space-y-1">
-                    <span className="text-[9px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    <span className="text-[9px] font-black text-white bg-primary px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                       Langkah {challengeStep + 1} dari 3
                     </span>
-                    <p className="text-[12px] font-bold text-white leading-tight">
+                    <p className="text-[12px] font-bold text-slate-800 leading-tight">
                       {challengeStep === 0 && "Hadap Depan: Tetap tegak dan perhatikan kamera"}
                       {challengeStep === 1 && "Hadap Kiri: Putar kepala Anda sedikit ke KIRI"}
                       {challengeStep === 2 && "Hadap Kanan: Putar kepala Anda sedikit ke KANAN"}
@@ -293,7 +317,7 @@ export default function EnrollPage() {
 
                   {countdown === null && !flashColor && (
                     <button type="button" onClick={runFlashChallenge}
-                      className="text-white font-medium text-[11px] px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                      className="text-white font-bold text-[11px] px-5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:brightness-110 active:scale-95"
                       style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}>
                       {challengeStep === 0 && "Mulai Pindai Depan (Flash)"}
                       {challengeStep === 1 && "Ambil Foto Kiri"}
@@ -307,26 +331,26 @@ export default function EnrollPage() {
                     {capturedImages.map((imgUrl, idx) => (
                       <div key={idx} className="relative flex flex-col items-center">
                         <img src={imgUrl} alt={`Pose ${idx}`} className="w-16 h-16 object-cover rounded-lg border border-primary/30" />
-                        <span className="text-[8px] font-bold text-[#8a8a9a] mt-1">
+                        <span className="text-[8px] font-bold text-slate-500 mt-1">
                           {idx === 0 ? "Depan" : idx === 1 ? "Kiri" : "Kanan"}
                         </span>
                       </div>
                     ))}
                   </div>
-                  <button type="button" onClick={startCamera} className="text-[#8a8a9a] hover:text-white text-[11px] font-medium px-3 py-1.5 rounded-lg transition-all cursor-pointer"
-                    style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <button type="button" onClick={startCamera} className="text-slate-500 hover:text-slate-700 text-[11px] font-bold px-4 py-2 rounded-xl transition-all cursor-pointer"
+                    style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.06)' }}>
                     Ulangi Pindai Wajah
                   </button>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-3 text-center relative z-10">
-                  <svg className="w-12 h-12 text-[#4a4a5a]" fill="none" stroke="currentColor" strokeWidth="1.2" viewBox="0 0 24 24">
+                  <svg className="w-12 h-12 text-[#7c6fe0]/40" fill="none" stroke="currentColor" strokeWidth="1.2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                   </svg>
-                  <p className="text-[11px] font-medium text-[#6b6b7a]">Verifikasi wajah multi-pose & liveness</p>
+                  <p className="text-[11px] font-medium text-slate-500">Verifikasi wajah multi-pose & liveness</p>
                   <div className="flex flex-wrap gap-2 justify-center">
                     <button type="button" onClick={startCamera} disabled={isSubmitting}
-                      className="text-white font-medium text-[11px] px-3.5 py-2 rounded-lg transition-all cursor-pointer flex items-center gap-1.5"
+                      className="text-white font-bold text-[11px] px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-sm hover:brightness-110 active:scale-95"
                       style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}>
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
@@ -342,7 +366,7 @@ export default function EnrollPage() {
           <canvas ref={canvasRef} className="hidden" />
 
           <button type="submit" disabled={isSubmitting}
-            className="w-full text-white font-semibold text-[13px] py-3.5 rounded-xl transition-all duration-200 hover:brightness-110 active:scale-[0.99] disabled:opacity-60 cursor-pointer"
+            className="w-full text-white font-bold text-[13px] py-3.5 rounded-xl transition-all duration-200 hover:brightness-110 active:scale-[0.99] disabled:opacity-60 cursor-pointer shadow-md"
             style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}>
             {isSubmitting ? (
               <span className="flex items-center justify-center gap-2">
@@ -356,10 +380,10 @@ export default function EnrollPage() {
           </button>
         </form>
 
-        <div className="pt-2 text-center flex justify-between items-center text-[11px] text-[#5a5a6a] font-medium"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <span>Sessiof v2.0</span>
-          <button type="button" onClick={() => router.push('/login')} className="hover:text-[#9b91e8] transition-colors">
+        <div className="pt-2 text-center flex justify-between items-center text-[11px] text-slate-400 font-semibold"
+          style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+          <span>Sessiof Enrollment Suite</span>
+          <button type="button" onClick={() => router.push('/login')} className="hover:text-slate-700 transition-colors">
             Masuk Portal
           </button>
         </div>
