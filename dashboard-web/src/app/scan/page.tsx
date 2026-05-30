@@ -121,10 +121,10 @@ export default function ScanAttendancePage() {
     setCountdown(3);
 
     const colors = [
-      { name: 'red', val: 'rgba(255, 0, 128, 0.85)' },
-      { name: 'blue', val: 'rgba(0, 128, 255, 0.85)' },
-      { name: 'yellow', val: 'rgba(255, 230, 0, 0.85)' },
-      { name: 'purple', val: 'rgba(147, 51, 234, 0.85)' }
+      { name: 'red', val: 'rgba(255, 0, 0, 1.0)' },
+      { name: 'blue', val: 'rgba(0, 0, 255, 1.0)' },
+      { name: 'yellow', val: 'rgba(255, 255, 0, 1.0)' },
+      { name: 'purple', val: 'rgba(255, 0, 255, 1.0)' }
     ];
     const selected = colors[Math.floor(Math.random() * colors.length)];
     setFlashColorName(selected.name);

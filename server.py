@@ -921,30 +921,20 @@ def verify_color_challenge():
     
     print(f"DEBUG Color Challenge: color={color}, diff=(B:{b_diff:.2f}, G:{g_diff:.2f}, R:{r_diff:.2f})")
     
-    thresh = 2.0
     success = False
     
+    # Cek kecenderungan (trend) pergeseran warna yang paling dominan
     if color == 'red':
-        if r_diff > thresh and r_diff > g_diff and r_diff > b_diff:
+        if r_diff > max(g_diff, b_diff) or (r_diff > 0.3 and r_diff > np.mean([g_diff, b_diff])):
             success = True
     elif color == 'blue':
-        if b_diff > thresh and b_diff > g_diff and b_diff > r_diff:
+        if b_diff > max(g_diff, r_diff) or (b_diff > 0.3 and b_diff > np.mean([g_diff, r_diff])):
             success = True
     elif color == 'yellow':
-        if r_diff > thresh and g_diff > thresh and r_diff > b_diff and g_diff > b_diff:
+        if min(r_diff, g_diff) > b_diff or (r_diff > 0.3 and g_diff > 0.3 and min(r_diff, g_diff) > b_diff):
             success = True
     elif color == 'purple':
-        if r_diff > thresh and b_diff > thresh and r_diff > g_diff and b_diff > g_diff:
-            success = True
-            
-    if not success:
-        if color == 'red' and r_diff > 0.8 and r_diff > max(g_diff, b_diff):
-            success = True
-        elif color == 'blue' and b_diff > 0.8 and b_diff > max(g_diff, r_diff):
-            success = True
-        elif color == 'yellow' and (r_diff + g_diff) / 2 > 0.8 and min(r_diff, g_diff) > b_diff:
-            success = True
-        elif color == 'purple' and (r_diff + b_diff) / 2 > 0.8 and min(r_diff, b_diff) > g_diff:
+        if min(r_diff, b_diff) > g_diff or (r_diff > 0.3 and b_diff > 0.3 and min(r_diff, b_diff) > g_diff):
             success = True
             
     if not success:
