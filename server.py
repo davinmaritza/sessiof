@@ -856,6 +856,203 @@ def stop_camera():
     camera_running = False
     return jsonify({"message": "Kamera absensi berhasil dihentikan"})
 
+@app.route('/api/verify-color-challenge', methods=['POST'])
+def verify_color_challenge():
+    if 'pre_flash' not in request.files or 'flash' not in request.files:
+        return jsonify({"error": "Kedua gambar (pre_flash & flash) wajib diunggah!"}), 400
+    
+    color = request.form.get("color", "").strip().lower() # 'red', 'blue', 'yellow', 'purple'
+    if not color:
+        return jsonify({"error": "Warna challenge wajib ditentukan!"}), 400
+    
+    file_pre = request.files['pre_flash']
+    file_flash = request.files['flash']
+    
+    bytes_pre = np.frombuffer(file_pre.read(), np.uint8)
+    bytes_flash = np.frombuffer(file_flash.read(), np.uint8)
+    
+    img_pre = cv2.imdecode(bytes_pre, cv2.IMREAD_COLOR)
+    img_flash = cv2.imdecode(bytes_flash, cv2.IMREAD_COLOR)
+    
+    if img_pre is None or img_flash is None:
+        return jsonify({"error": "Gagal membaca format gambar."}), 400
+    
+    h, w = img_pre.shape[:2]
+    detector.setInputSize((w, h))
+    _, faces_pre = detector.detect(img_pre)
+    
+    if faces_pre is None or len(faces_pre) == 0:
+        return jsonify({"error": "Wajah tidak terdeteksi pada gambar pra-flash! Harap hadap lurus ke kamera."}), 400
+        
+    h2, w2 = img_flash.shape[:2]
+    detector.setInputSize((w2, h2))
+    _, faces_flash = detector.detect(img_flash)
+    
+    if faces_flash is None or len(faces_flash) == 0:
+        return jsonify({"error": "Wajah tidak terdeteksi pada saat flash warna! Jangan banyak bergerak."}), 400
+    
+    box_pre = faces_pre[0][0:4].astype(int)
+    box_flash = faces_flash[0][0:4].astype(int)
+    
+    def get_face_crop(img, box):
+        x, y, gw, gh = box
+        x1 = max(0, x)
+        y1 = max(0, y)
+        x2 = min(img.shape[1], x + gw)
+        y2 = min(img.shape[0], y + gh)
+        cx = (x1 + x2) // 2
+        cy = (y1 + y2) // 2
+        rw = int((x2 - x1) * 0.3)
+        rh = int((y2 - y1) * 0.3)
+        return img[cy-rh:cy+rh, cx-rw:cx+rw]
+        
+    crop_pre = get_face_crop(img_pre, box_pre)
+    crop_flash = get_face_crop(img_flash, box_flash)
+    
+    if crop_pre.size == 0 or crop_flash.size == 0:
+        return jsonify({"error": "Gagal memproses area wajah."}), 400
+        
+    mean_pre = cv2.mean(crop_pre)[:3] # (B, G, R)
+    mean_flash = cv2.mean(crop_flash)[:3] # (B, G, R)
+    
+    b_diff = mean_flash[0] - mean_pre[0]
+    g_diff = mean_flash[1] - mean_pre[1]
+    r_diff = mean_flash[2] - mean_pre[2]
+    
+    print(f"DEBUG Color Challenge: color={color}, diff=(B:{b_diff:.2f}, G:{g_diff:.2f}, R:{r_diff:.2f})")
+    
+    thresh = 2.0
+    success = False
+    
+    if color == 'red':
+        if r_diff > thresh and r_diff > g_diff and r_diff > b_diff:
+            success = True
+    elif color == 'blue':
+        if b_diff > thresh and b_diff > g_diff and b_diff > r_diff:
+            success = True
+    elif color == 'yellow':
+        if r_diff > thresh and g_diff > thresh and r_diff > b_diff and g_diff > b_diff:
+            success = True
+    elif color == 'purple':
+        if r_diff > thresh and b_diff > thresh and r_diff > g_diff and b_diff > g_diff:
+            success = True
+            
+    if not success:
+        if color == 'red' and r_diff > 0.8 and r_diff > max(g_diff, b_diff):
+            success = True
+        elif color == 'blue' and b_diff > 0.8 and b_diff > max(g_diff, r_diff):
+            success = True
+        elif color == 'yellow' and (r_diff + g_diff) / 2 > 0.8 and min(r_diff, g_diff) > b_diff:
+            success = True
+        elif color == 'purple' and (r_diff + b_diff) / 2 > 0.8 and min(r_diff, b_diff) > g_diff:
+            success = True
+            
+    if not success:
+        return jsonify({
+            "error": f"Pantulan warna {color.upper()} tidak terdeteksi pada wajah Anda! Pastikan layar menghadap wajah Anda dan kondisi cahaya cukup."
+        }), 400
+        
+    return jsonify({"message": f"Liveness deteksi pantulan warna {color.upper()} berhasil!"})
+
+@app.route('/api/verify-pose', methods=['POST'])
+def verify_pose():
+    if 'image' not in request.files:
+        return jsonify({"error": "Gambar pose wajib diunggah!"}), 400
+    
+    pose = request.form.get("pose", "center").strip().lower()
+    if pose not in ['left', 'right', 'center']:
+        return jsonify({"error": "Pose tidak valid!"}), 400
+        
+    file = request.files['image']
+    bytes_img = np.frombuffer(file.read(), np.uint8)
+    img = cv2.imdecode(bytes_img, cv2.IMREAD_COLOR)
+    
+    if img is None:
+        return jsonify({"error": "Gagal membaca format gambar."}), 400
+        
+    h, w = img.shape[:2]
+    detector.setInputSize((w, h))
+    _, faces = detector.detect(img)
+    
+    if faces is None or len(faces) == 0:
+        return jsonify({"error": "Wajah tidak terdeteksi! Silakan posisikan wajah dengan benar di depan kamera."}), 400
+        
+    face = faces[0]
+    rex, ley, nex = face[4], face[6], face[8]
+    eye_width = abs(ley - rex)
+    if eye_width > 0:
+        ratio = (nex - min(rex, ley)) / eye_width
+        print(f"DEBUG Verify Pose Check: expected={pose}, ratio={ratio:.3f}")
+        
+        if pose == "left":
+            if ratio >= 0.40:
+                return jsonify({"error": "Sensor mendeteksi wajah Anda tidak menghadap ke KIRI. Silakan menoleh ke KIRI."}), 400
+        elif pose == "right":
+            if ratio <= 0.60:
+                return jsonify({"error": "Sensor mendeteksi wajah Anda tidak menghadap ke KANAN. Silakan menoleh ke KANAN."}), 400
+        elif pose == "center":
+            if ratio < 0.38 or ratio > 0.62:
+                return jsonify({"error": "Sensor mendeteksi wajah Anda miring/menoleh. Silakan hadap lurus ke DEPAN."}), 400
+                
+    return jsonify({"message": f"Pose {pose.upper()} terverifikasi!"})
+
+@app.route('/api/verify-attendance-face', methods=['POST'])
+def verify_attendance_face():
+    if 'image' not in request.files:
+        return jsonify({"error": "Gambar wajah wajib diunggah!"}), 400
+        
+    file = request.files['image']
+    bytes_img = np.frombuffer(file.read(), np.uint8)
+    img = cv2.imdecode(bytes_img, cv2.IMREAD_COLOR)
+    
+    if img is None:
+        return jsonify({"error": "Gagal membaca format gambar."}), 400
+        
+    h, w = img.shape[:2]
+    detector.setInputSize((w, h))
+    _, faces = detector.detect(img)
+    
+    if faces is None or len(faces) == 0:
+        return jsonify({"error": "Wajah tidak terdeteksi! Silakan hadap lurus ke depan kamera."}), 400
+        
+    load_templates()
+    if not templates:
+        return jsonify({"error": "Database template wajah kosong! Silakan daftarkan siswa terlebih dahulu."}), 400
+        
+    aligned_face = recognizer.alignCrop(img, faces[0])
+    query_feat = recognizer.feature(aligned_face)
+    
+    best_match = None
+    max_score = -1.0
+    for name, feat_list in templates.items():
+        for feat in feat_list:
+            score = recognizer.match(query_feat, feat, cv2.FaceRecognizerSF_FR_COSINE)
+            if score > max_score:
+                max_score = score
+                best_match = name
+                
+    print(f"DEBUG Attendance Face Verification: Match={best_match}, Score={max_score:.3f}")
+    
+    if max_score > 0.363:
+        is_duplicate = log_attendance(best_match)
+        status_text = "Sudah Absen Hari Ini" if is_duplicate else "ABSEN BERHASIL!"
+        
+        metadata = load_metadata()
+        student_info = metadata.get(best_match, {})
+        kelas = student_info.get("class_name", "-")
+        no_absen = student_info.get("absent_no", "-")
+        
+        return jsonify({
+            "success": True,
+            "name": best_match,
+            "class_name": kelas,
+            "absent_no": no_absen,
+            "is_duplicate": is_duplicate,
+            "message": f"Kehadiran berhasil dicatat untuk {best_match} ({status_text})."
+        })
+    else:
+        return jsonify({"error": "Wajah tidak dikenali dalam sistem. Silakan coba lagi atau hubungi admin."}), 400
+
 def migrate_dataset():
     if not os.path.exists(DATASET_DIR):
         return

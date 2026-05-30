@@ -90,10 +90,10 @@ export default function LandingPage() {
         {/* CTA BUTTONS */}
         <div className="flex flex-wrap items-center justify-center gap-4 animate-fade-in">
           <Link 
-            href={isLogged ? "/dashboard" : "/login"} 
+            href="/scan" 
             className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-8 py-4 rounded-full shadow-lg transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] hover:shadow-xl cursor-pointer"
           >
-            Mulai Kamera Absensi &rarr;
+            Mulai Absensi Wajah &rarr;
           </Link>
           <Link 
             href="/enroll" 
