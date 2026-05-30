@@ -371,6 +371,30 @@ export default function ScanAttendancePage() {
                 style={{ border: '2px solid rgba(255,255,255,0.08)' }}>
                 <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
                 
+                {/* Direction Guide Overlay */}
+                {useCamera && countdown === null && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                    {challengeStep === 0 && (
+                      <div className="flex flex-col items-center justify-center bg-black/55 px-3.5 py-2 rounded-xl border border-white/10 backdrop-blur-md animate-pulse-soft">
+                        <span className="text-white text-2xl">🎯</span>
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest mt-1 animate-pulse">Hadap Depan</span>
+                      </div>
+                    )}
+                    {challengeStep === 2 && (
+                      <div className="flex flex-col items-center justify-center bg-black/55 px-4 py-2.5 rounded-xl border border-primary/20 backdrop-blur-md animate-bounce-left">
+                        <span className="text-primary-light text-3xl font-black">←</span>
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest mt-1">Menoleh Kiri</span>
+                      </div>
+                    )}
+                    {challengeStep === 3 && (
+                      <div className="flex flex-col items-center justify-center bg-black/55 px-4 py-2.5 rounded-xl border border-primary/20 backdrop-blur-md animate-bounce-right">
+                        <span className="text-primary-light text-3xl font-black">→</span>
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest mt-1">Menoleh Kanan</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Countdown display */}
                 {countdown !== null && (
                   <div className="absolute inset-0 bg-black/75 flex flex-col items-center justify-center z-20">
