@@ -3,98 +3,121 @@ import os
 import numpy as np
 import pandas as pd
 import time
+import math
+import pickle
 import urllib.request
 import requests
 from datetime import datetime
-from openpyxl import load_workbook
 
-# 1. Unduh Haar Cascade XML untuk deteksi wajah jika belum ada
-CASCADE_URL = "https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_frontalface_default.xml"
-CASCADE_PATH = "haarcascade_frontalface_default.xml"
+# URL Model Deep Learning YuNet & SFace
+YUNET_URL = "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
+SFACE_URL = "https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx"
+YUNET_PATH = "face_detection_yunet_2023mar.onnx"
+SFACE_PATH = "face_recognition_sface_2021dec.onnx"
 
-if not os.path.exists(CASCADE_PATH):
-    print("Mengunduh Haar Cascade XML dari OpenCV repository...")
-    urllib.request.urlretrieve(CASCADE_URL, CASCADE_PATH)
-    print("Haar Cascade berhasil diunduh.")
+def download_models():
+    for url, path_file in [(YUNET_URL, YUNET_PATH), (SFACE_URL, SFACE_PATH)]:
+        if not os.path.exists(path_file):
+            print(f"Mengunduh {path_file}...")
+            urllib.request.urlretrieve(url, path_file)
+            print(f"{path_file} berhasil diunduh.")
 
-# Inisialisasi Detektor Wajah OpenCV
-face_cascade = cv2.CascadeClassifier(CASCADE_PATH)
+download_models()
+
+# Inisialisasi Detektor YuNet & Pengenal SFace
+detector = cv2.FaceDetectorYN.create(YUNET_PATH, "", (320, 240))
+recognizer = cv2.FaceRecognizerSF.create(SFACE_PATH, "")
 
 # File Penyimpanan Absensi Lokal
 EXCEL_FILE = "attendance.xlsx"
-
-# URL Webhook Google Sheets (Masukkan URL Web App dari Google Apps Script Anda di sini)
-# Contoh: "https://script.google.com/macros/s/xxxx/exec"
 GOOGLE_SHEETS_WEBHOOK_URL = ""
+METADATA_FILE = "students_metadata.json"
 
-# 2. Fungsi untuk Merekam Absensi ke Excel & Google Sheets
+# --- UTILS METADATA ---
+def load_metadata():
+    if os.path.exists(METADATA_FILE):
+        try:
+            with open(METADATA_FILE, 'r') as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_metadata(metadata):
+    with open(METADATA_FILE, 'w') as f:
+        import json
+        json.dump(metadata, f, indent=4)
+
 def log_attendance(name):
-    # Dapatkan waktu saat ini
-    now = datetime.now()
-    hari_ini = now.strftime("%A")  # Nama Hari
-    tanggal = now.strftime("%d")   # Tanggal
-    bulan = now.strftime("%B")     # Bulan
-    tahun = now.strftime("%Y")     # Tahun
-    waktu = now.strftime("%H:%M:%S") # Jam:Menit:Detik
+    metadata = load_metadata()
+    student_info = metadata.get(name, {})
+    kelas = student_info.get("class_name", "-")
+    no_absen = student_info.get("absent_no", "-")
     
-    # Format baris data
+    now = datetime.now()
+    hari_ini = now.strftime("%A")
+    tanggal = now.strftime("%d")
+    bulan = now.strftime("%B")
+    tahun = now.strftime("%Y")
+    waktu = now.strftime("%H:%M:%S")
+    
     data_absen = {
         "Nama": [name],
+        "Kelas": [kelas],
+        "No Absen": [no_absen],
         "Hari": [hari_ini],
         "Tanggal": [tanggal],
         "Bulan": [bulan],
         "Tahun": [tahun],
-        "Waktu Absen": [waktu]
+        "Waktu Absen": [waktu],
+        "Status": ["Hadir"]
     }
     df_new = pd.DataFrame(data_absen)
     
-    # A. CATAT KE EXCEL LOKAL (.xlsx)
     sudah_absen_hari_ini = False
     
-    if os.path.exists(EXCEL_FILE):
-        df_existing = pd.read_excel(EXCEL_FILE)
-        
-        # Cek apakah siswa sudah absen hari ini (mencegah absen ganda di hari yang sama)
-        sudah_absen = df_existing[
-            (df_existing["Nama"] == name) & 
-            (df_existing["Tanggal"].astype(str) == str(tanggal)) & 
-            (df_existing["Bulan"] == bulan) & 
-            (df_existing["Tahun"].astype(str) == str(tahun))
-        ]
-        
-        if not sudah_absen.empty:
-            sudah_absen_hari_ini = True
+    try:
+        if os.path.exists(EXCEL_FILE):
+            df_existing = pd.read_excel(EXCEL_FILE)
+            df_existing = df_existing.loc[:, ~df_existing.columns.str.contains('^Unnamed')]
+            
+            if df_existing.empty or "Nama" not in df_existing.columns:
+                df_new.to_excel(EXCEL_FILE, index=False)
+            else:
+                sudah_absen = df_existing[
+                    (df_existing["Nama"] == name) & 
+                    (pd.to_numeric(df_existing["Tanggal"], errors='coerce') == int(tanggal)) & 
+                    (df_existing["Bulan"] == bulan) & 
+                    (pd.to_numeric(df_existing["Tahun"], errors='coerce') == int(tahun))
+                ]
+                if not sudah_absen.empty:
+                    sudah_absen_hari_ini = True
+                else:
+                    if "Status" not in df_existing.columns:
+                        df_existing["Status"] = "Hadir"
+                    df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+                    df_combined.to_excel(EXCEL_FILE, index=False)
         else:
-            # Gunakan openpyxl untuk append data baru tanpa menimpa format
-            with pd.ExcelWriter(EXCEL_FILE, mode='a', engine='openpyxl', if_sheet_exists='overlay') as writer:
-                df_new.to_excel(writer, index=False, header=False, startrow=len(df_existing) + 1)
-    else:
-        # Jika file belum ada, buat file Excel baru
-        df_new.to_excel(EXCEL_FILE, index=False)
+            df_new.to_excel(EXCEL_FILE, index=False)
+            
+    except Exception as e:
+        print(f"Gagal mencatat absensi ke Excel: {e}")
+        return False
         
-    # B. KIRIM KE GOOGLE SHEETS VIA WEBHOOK (Jika URL diisi)
     if GOOGLE_SHEETS_WEBHOOK_URL and not sudah_absen_hari_ini:
         payload = {
-            "nama": name,
-            "hari": hari_ini,
-            "tanggal": tanggal,
-            "bulan": bulan,
-            "tahun": tahun,
-            "waktu": waktu
+            "nama": name, "kelas": kelas, "no_absen": no_absen,
+            "hari": hari_ini, "tanggal": tanggal, 
+            "bulan": bulan, "tahun": tahun, "waktu": waktu, "status": "Hadir"
         }
         try:
-            # Mengirim data secara asinkron/POST request
-            response = requests.post(GOOGLE_SHEETS_WEBHOOK_URL, json=payload)
-            if response.status_code == 200:
-                print(f"-> Berhasil sinkronisasi Google Sheets untuk {name}")
-            else:
-                print(f"-> Gagal kirim ke Google Sheets. Status code: {response.status_code}")
-        except Exception as e:
-            print(f"-> Gagal menghubungi Google Sheets Webhook: {e}")
+            requests.post(GOOGLE_SHEETS_WEBHOOK_URL, json=payload, timeout=5)
+        except Exception:
+            pass
             
     return sudah_absen_hari_ini
 
-# 3. Fitur Registrasi Siswa Baru
+# Fitur Registrasi Siswa Baru
 def register_student():
     name = input("Masukkan Nama Siswa: ").strip()
     if not name:
@@ -114,6 +137,15 @@ def register_student():
     student_dir = os.path.join("dataset", safe_class, f"{absent_no} - {safe_name}")
     os.makedirs(student_dir, exist_ok=True)
     
+    # Simpan metadata
+    metadata = load_metadata()
+    metadata[name] = {
+        "name": name,
+        "class_name": class_name,
+        "absent_no": absent_no
+    }
+    save_metadata(metadata)
+    
     print("\nKamera akan terbuka. Harap melihat ke kamera dengan berbagai ekspresi/sudut.")
     print("Mengambil 30 foto wajah otomatis...")
     
@@ -125,28 +157,23 @@ def register_student():
         if not success:
             break
             
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
+        h, w = frame.shape[:2]
+        detector.setInputSize((w, h))
+        retval, faces = detector.detect(frame)
         
-        for (x, y, w, h) in faces:
-            count += 1
-            # Crop bagian wajah
-            face_img = gray[y:y+h, x:x+w]
-            # Resize wajah ke ukuran standar agar hasil training optimal
-            face_img = cv2.resize(face_img, (200, 200))
-            
-            # Simpan file gambar
-            img_path = os.path.join(student_dir, f"{count}.jpg")
-            cv2.imwrite(img_path, face_img)
-            
-            # Gambar kotak penanda di layar
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
-            cv2.putText(frame, f"Foto: {count}/30", (x, y - 10), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
-            
+        if faces is not None:
+            for face in faces:
+                count += 1
+                aligned_face = recognizer.alignCrop(frame, face)
+                img_path = os.path.join(student_dir, f"{count}.jpg")
+                cv2.imwrite(img_path, aligned_face)
+                
+                box = face[0:4].astype(int)
+                cv2.rectangle(frame, (box[0], box[1]), (box[0]+box[2], box[1]+box[3]), (255, 0, 0), 2)
+                cv2.putText(frame, f"Foto: {count}/30", (box[0], box[1] - 10), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+                
         cv2.imshow("Registrasi Wajah Siswa - Harap Tunggu", frame)
-        
-        # Jeda sedikit agar variasi gambar bagus
         if cv2.waitKey(200) & 0xFF == ord('q'):
             break
             
@@ -159,19 +186,18 @@ def register_student():
     else:
         print("Registrasi dibatalkan atau tidak lengkap.")
 
-# 4. Fitur Pelatihan (Training) Pengenal Wajah
+# Fitur Pelatihan (Training) Pengenal Wajah
 def train_classifier():
     dataset_dir = "dataset"
     if not os.path.exists(dataset_dir) or len(os.listdir(dataset_dir)) == 0:
         print("Belum ada data siswa terdaftar di folder 'dataset/'. Daftarkan siswa terlebih dahulu di Menu [1].")
         return
         
-    faces = []
-    ids = []
+    embeddings_list = []
     name_list = []
-    id_counter = 0
     
-    # Baca folder dataset secara terstruktur
+    print("Memulai proses training wajah... Harap tunggu...")
+    
     classes = [c for c in os.listdir(dataset_dir) if os.path.isdir(os.path.join(dataset_dir, c))]
     for cls in classes:
         class_path = os.path.join(dataset_dir, cls)
@@ -191,103 +217,153 @@ def train_classifier():
                 
                 for img_name in photos:
                     img_path = os.path.join(folder_path, img_name)
-                    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+                    img = cv2.imread(img_path)
                     if img is not None:
-                        faces.append(img)
-                        ids.append(id_counter)
+                        h, w = img.shape[:2]
+                        # Jika sudah ter-align 112x112
+                        if w == 112 and h == 112:
+                            feat = recognizer.feature(img)
+                            embeddings_list.append((student_name, feat))
+                        else:
+                            detector.setInputSize((w, h))
+                            retval, faces = detector.detect(img)
+                            if faces is not None:
+                                aligned_face = recognizer.alignCrop(img, faces[0])
+                                feat = recognizer.feature(aligned_face)
+                                embeddings_list.append((student_name, feat))
                 
-                id_counter += 1
-                
-    if len(faces) == 0:
+    if len(embeddings_list) == 0:
         print("Tidak ada foto wajah yang ditemukan untuk ditraining.")
         return
         
-    print("Memulai proses training wajah... Harap tunggu...")
-    # Gunakan LBPH Face Recognizer
-    recognizer = cv2.face.LBPHFaceRecognizer_create()
-    recognizer.train(faces, np.array(ids))
-    
-    # Simpan file trainer
-    recognizer.write("trainer.yml")
-    
-    # Simpan daftar nama siswa agar indeks id_num sinkron saat pengenalan
+    with open("embeddings.pkl", "wb") as f:
+        pickle.dump(embeddings_list, f)
+        
     np.save("names.npy", np.array(name_list))
     
-    print(f"Training Selesai! Model wajah disimpan sebagai 'trainer.yml'")
+    print(f"Training Selesai! Model wajah disimpan sebagai 'embeddings.pkl'")
     print(f"Siswa terdaftar ({len(name_list)}): {', '.join(name_list)}")
 
-# 5. Fitur Deteksi Wajah dan Absensi Real-Time
+# Fitur Deteksi Wajah dan Absensi Real-Time
 def start_attendance():
-    if not os.path.exists("trainer.yml") or not os.path.exists("names.npy"):
-        print("Error: File model 'trainer.yml' tidak ditemukan. Jalankan Menu [2] terlebih dahulu!")
+    if not os.path.exists("embeddings.pkl"):
+        print("Error: File model 'embeddings.pkl' tidak ditemukan. Jalankan Menu [2] terlebih dahulu!")
         return
         
-    # Load Model dan Daftar Nama
-    recognizer = cv2.face.LBPHFaceRecognizer_create()
-    recognizer.read("trainer.yml")
-    names = np.load("names.npy")
-    
+    # Load Templates
+    templates = {}
+    with open("embeddings.pkl", "rb") as f:
+        emb_list = pickle.load(f)
+        for name, feat in emb_list:
+            if name not in templates:
+                templates[name] = []
+            templates[name].append(feat)
+            
     print("Membuka Kamera untuk Absensi...")
     print("Tekan 'q' untuk berhenti.")
     
     cap = cv2.VideoCapture(0)
-    
-    # Catatan sementara agar tidak mencetak tulisan "berhasil absen" berkali-kali di terminal
-    already_announced = set()
+    attendance_buffer = {}
+    landmark_history = []
     
     while cap.isOpened():
         success, frame = cap.read()
         if not success:
             break
             
-        # Gunakan grayscale untuk pengenalan wajah
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
+        h, w = frame.shape[:2]
+        detector.setInputSize((w, h))
+        retval, faces = detector.detect(frame)
         
-        for (x, y, w, h) in faces:
-            # Deteksi & Prediksi ID wajah
-            face_img = gray[y:y+h, x:x+w]
-            face_img = cv2.resize(face_img, (200, 200))
-            
-            label_id, confidence = recognizer.predict(face_img)
-            
-            # Confidence pada LBPH menunjukkan jarak/error (makin kecil nilainya, makin mirip wajahnya)
-            # Nilai confidence < 80 biasanya dianggap cukup akurat
-            if confidence < 75:
-                student_name = names[label_id]
-                match_percentage = int(100 - confidence)
-                display_text = f"{student_name} ({match_percentage}%)"
-                box_color = (0, 255, 0) # Hijau untuk dikenal
+        recognized_any = False
+        
+        if faces is not None:
+            for face in faces:
+                x, y, gw, gh = face[0:4].astype(int)
                 
-                # Proses absensi ke Excel & Google Sheets
-                is_duplicate = log_attendance(student_name)
+                # Pasif Liveness Detection
+                x_c = max(0, x)
+                y_c = max(0, y)
+                w_c = min(w - x_c, gw)
+                h_c = min(h - y_c, gh)
+                face_crop = frame[y_c:y_c+h_c, x_c:x_c+w_c]
                 
-                if is_duplicate:
-                    status_text = "Sudah Absen Hari Ini"
-                    text_color = (255, 191, 0) # Biru langit / Cyan muda
-                else:
-                    status_text = "ABSEN BERHASIL!"
-                    text_color = (0, 255, 0) # Hijau
-                    if student_name not in already_announced:
-                        print(f"Absen Berhasil: {student_name} pada {datetime.now().strftime('%H:%M:%S')}")
-                        already_announced.add(student_name)
-            else:
-                display_text = "Unknown"
-                status_text = "Wajah Tidak Dikenal"
-                box_color = (0, 0, 255) # Merah
-                text_color = (0, 0, 255)
-            
-            # Gambar kotak wajah
-            cv2.rectangle(frame, (x, y), (x+w, y+h), box_color, 2)
-            # Tampilkan Nama Siswa
-            cv2.putText(frame, display_text, (x, y - 10), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, box_color, 2)
-            # Tampilkan Status Kehadiran di bawah kotak wajah
-            cv2.putText(frame, status_text, (x, y + h + 25), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, text_color, 2)
+                laplacian_var = 0.0
+                if face_crop.size > 0:
+                    gray_crop = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
+                    laplacian_var = cv2.Laplacian(gray_crop, cv2.CV_64F).var()
+                    
+                landmark_history.append(face[4:14].copy())
+                if len(landmark_history) > 10:
+                    landmark_history.pop(0)
+                    
+                mean_var = 0.0
+                if len(landmark_history) >= 5:
+                    arr = np.array(landmark_history)
+                    coord_vars = np.var(arr, axis=0)
+                    mean_var = np.mean(coord_vars)
+                    
+                is_live = (laplacian_var >= 50.0) and (mean_var >= 0.03)
+                
+                # Match
+                aligned_face = recognizer.alignCrop(frame, face)
+                query_feat = recognizer.feature(aligned_face)
+                
+                best_match = None
+                max_score = -1.0
+                
+                for name, feat_list in templates.items():
+                    for feat in feat_list:
+                        score = recognizer.match(query_feat, feat, cv2.FaceRecognizerSF_FR_COSINE)
+                        if score > max_score:
+                            max_score = score
+                            best_match = name
+                            
+                if max_score > 0.363:
+                    student_name = best_match
+                    match_percentage = int(max_score * 100)
+                    
+                    if is_live:
+                        display_text = f"{student_name} ({match_percentage}%) [LIVE]"
+                        box_color = (0, 255, 0)
                         
+                        attendance_buffer[student_name] = attendance_buffer.get(student_name, 0) + 1
+                        if attendance_buffer[student_name] >= 8:
+                            is_duplicate = log_attendance(student_name)
+                            status_text = "Sudah Absen Hari Ini" if is_duplicate else "ABSEN BERHASIL!"
+                            text_color = (255, 191, 0) if is_duplicate else (0, 255, 0)
+                            
+                            # Render output sebelum menutup
+                            cv2.rectangle(frame, (x, y), (x+gw, y+gh), box_color, 2)
+                            cv2.putText(frame, display_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, box_color, 2)
+                            cv2.putText(frame, status_text, (x, y + gh + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, text_color, 2)
+                            cv2.imshow("Sistem Absensi Kamera - Scan Wajah Siswa", frame)
+                            cv2.waitKey(1500)
+                            break
+                        else:
+                            status_text = f"Memverifikasi... ({attendance_buffer[student_name]}/8)"
+                            text_color = (0, 255, 255)
+                    else:
+                        display_text = f"{student_name} ({match_percentage}%) [SPOOF]"
+                        box_color = (0, 165, 255)
+                        status_text = "Harap Berkedip/Gerakkan Kepala"
+                        text_color = (0, 165, 255)
+                else:
+                    display_text = "Unknown"
+                    status_text = "Wajah Tidak Dikenal"
+                    box_color = (0, 0, 255)
+                    text_color = (0, 0, 255)
+                
+                cv2.rectangle(frame, (x, y), (x+gw, y+gh), box_color, 2)
+                cv2.putText(frame, display_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, box_color, 2)
+                cv2.putText(frame, status_text, (x, y + gh + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, text_color, 2)
+                recognized_any = True
+                
+        if not recognized_any:
+            landmark_history.clear()
+            attendance_buffer.clear()
+            
         cv2.imshow("Sistem Absensi Kamera - Scan Wajah Siswa", frame)
-        
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
             
@@ -295,7 +371,7 @@ def start_attendance():
     cv2.destroyAllWindows()
     print("Selesai. Kamera absensi ditutup.")
 
-# 6. Menu Utama
+# Menu Utama
 def main():
     while True:
         print("\n" + "="*45)

@@ -8,76 +8,182 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    const logged = localStorage.getItem('sessiof_admin_logged');
-    if (logged === 'true') {
+    const adminLogged = localStorage.getItem('sessiof_admin_logged');
+    if (adminLogged === 'true') {
       router.replace('/dashboard');
+      return;
+    }
+    const studentLogged = localStorage.getItem('sessiof_student_logged');
+    if (studentLogged === 'true') {
+      router.replace('/student/dashboard');
     }
   }, [router]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === 'admin' && password === 'admin') {
+    setLoginError('');
+    setIsLoading(true);
+
+    const cleanUsername = username.trim();
+    const cleanPassword = password.trim();
+
+    if (cleanUsername.toLowerCase() === 'admin' && cleanPassword === 'admin') {
       localStorage.setItem('sessiof_admin_logged', 'true');
       router.push('/dashboard');
     } else {
-      setLoginError('Username atau password admin salah!');
+      try {
+        const res = await fetch('http://localhost:5000/api/student/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: cleanUsername, password: cleanPassword })
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.success) {
+          localStorage.setItem('sessiof_student_logged', 'true');
+          localStorage.setItem('sessiof_student_name', data.name);
+          localStorage.setItem('sessiof_student_class', data.class_name);
+          localStorage.setItem('sessiof_student_absent', data.absent_no);
+          router.push('/student/dashboard');
+        } else {
+          setLoginError(data.error || 'Username atau password salah.');
+        }
+      } catch (error) {
+        setLoginError('Tidak dapat terhubung ke server.');
+      }
     }
+    setIsLoading(false);
   };
 
   return (
-    <main className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-6 antialiased font-sans">
-      <div className="bg-white border border-slate-200/80 max-w-md w-full rounded-2xl p-8 shadow-xl space-y-6 hover:shadow-2xl transition-all duration-300">
-        
-        <div className="text-center space-y-2">
-          {/* Logo Sessiof */}
-          <div className="mx-auto h-12 w-12 bg-black rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md">
-            S
+    <main className="min-h-screen flex items-center justify-center p-5 antialiased relative overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1625 40%, #0f0f1a 100%)' }}>
+      
+      {/* Subtle ambient light */}
+      <div className="absolute top-[-30%] left-[20%] w-[500px] h-[500px] rounded-full opacity-30 pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(91,77,199,0.15) 0%, transparent 70%)' }} />
+      <div className="absolute bottom-[-20%] right-[10%] w-[400px] h-[400px] rounded-full opacity-20 pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(124,111,224,0.12) 0%, transparent 70%)' }} />
+
+      <div className="w-full max-w-[400px] animate-scale-in">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="mx-auto h-11 w-11 rounded-xl flex items-center justify-center mb-5"
+            style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}>
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.746 3.746 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+            </svg>
           </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-3">Sign in to Sessiof</h1>
-          <p className="text-slate-400 text-xs">Aplikasi Absensi Presensi Deteksi Wajah Sekolah</p>
+          <h1 className="text-[22px] font-semibold text-white tracking-tight">Masuk ke Sessiof</h1>
+          <p className="text-[13px] text-[#8a8a9a] mt-1.5">Sistem absensi presensi wajah sekolah</p>
         </div>
 
-        {loginError && (
-          <div className="bg-red-50 border border-red-100 text-red-600 rounded-xl p-3.5 text-xs font-semibold text-center">
-            {loginError}
-          </div>
-        )}
+        {/* Card */}
+        <div className="rounded-2xl p-7 space-y-5"
+          style={{ 
+            background: 'rgba(255,255,255,0.04)', 
+            border: '1px solid rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(20px)'
+          }}>
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="text-[10px] font-bold text-slate-400 block mb-1.5 uppercase tracking-wider">Username Admin</label>
-            <input
-              type="text"
-              placeholder="Masukkan username (admin)"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-slate-400 transition-all duration-200"
-              required
-            />
-          </div>
+          {loginError && (
+            <div className="flex items-center gap-2.5 rounded-xl p-3.5 text-[13px] font-medium animate-slide-up"
+              style={{ background: 'rgba(220,74,70,0.08)', border: '1px solid rgba(220,74,70,0.15)', color: '#f87171' }}>
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              <span>{loginError}</span>
+            </div>
+          )}
 
-          <div>
-            <label className="text-[10px] font-bold text-slate-400 block mb-1.5 uppercase tracking-wider">Password Admin</label>
-            <input
-              type="password"
-              placeholder="Masukkan password (admin)"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-slate-400 transition-all duration-200"
-              required
-            />
-          </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-medium text-[#8a8a9a] block tracking-wide">
+                Username
+              </label>
+              <input
+                type="text"
+                placeholder="Masukkan username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-3.5 py-3 text-[13px] text-white font-medium rounded-xl transition-all duration-200"
+                style={{ 
+                  background: 'rgba(255,255,255,0.05)', 
+                  border: '1px solid rgba(255,255,255,0.1)',
+                }}
+                required
+              />
+            </div>
 
-          <button
-            type="submit"
-            className="w-full bg-black hover:bg-slate-800 text-white font-bold text-xs py-3 rounded-xl shadow-md transition-all duration-200 hover:scale-[1.01]"
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-medium text-[#8a8a9a] block tracking-wide">Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Masukkan password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-3.5 py-3 pr-10 text-[13px] text-white font-medium rounded-xl transition-all duration-200"
+                  style={{ 
+                    background: 'rgba(255,255,255,0.05)', 
+                    border: '1px solid rgba(255,255,255,0.1)',
+                  }}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6b6b7a] hover:text-white transition-colors p-0.5"
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full text-white font-semibold text-[13px] py-3 rounded-xl transition-all duration-200 hover:brightness-110 active:scale-[0.99] disabled:opacity-60 cursor-pointer mt-2"
+              style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}
+            >
+              {isLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Memverifikasi...
+                </span>
+              ) : 'Masuk'}
+            </button>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-6 flex justify-between items-center text-[11px] text-[#5a5a6a] font-medium px-1">
+          <span>Sessiof v2.0</span>
+          <button 
+            type="button" 
+            onClick={() => router.push('/')} 
+            className="hover:text-[#9b91e8] transition-colors"
           >
-            Log In
+            Kembali ke beranda
           </button>
-        </form>
-
+        </div>
       </div>
     </main>
   );

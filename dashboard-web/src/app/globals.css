@@ -1,32 +1,314 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --canvas: #ffffff;
+  --surface: #f8f8f7;
+  --surface-soft: #fbfbfa;
+  --hairline: #e8e6e1;
+  --hairline-soft: #f0ede8;
+  --hairline-strong: #d4d1ca;
+  --ink-deep: #111111;
+  --ink: #1c1c1c;
+  --charcoal: #2d2d2d;
+  --slate: #555555;
+  --steel: #717171;
+  --stone: #999999;
+  --muted: #b4b4b4;
+  --primary: #5b4dc7;
+  --primary-light: #7c6fe0;
+  --primary-lighter: #c4bef0;
+  --primary-surface: #f0eefb;
+  --accent-success: #2d9d78;
+  --accent-warning: #d97706;
+  --accent-danger: #dc4a46;
+  --accent-info: #3b82f6;
+  --bg-page-start: #ffffff;
+  --bg-page-end: #f8f8f7;
+  --bg-panel: #ffffff;
+  --border-panel: #e8e6e1;
+  --bg-sidebar: #f8f8f7;
+  --border-sidebar: #e8e6e1;
+  --bg-element: #f8f8f7;
+  --border-element: #e8e6e1;
+  --text-title: #1c1c1c;
+  --text-body: #2d2d2d;
+  --text-muted: #717171;
+  --shadow-color: rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 8px -2px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px -4px rgba(0, 0, 0, 0.08);
+}
+
+.dark {
+  --canvas: #191919;
+  --surface: #1f1f1f;
+  --surface-soft: #242424;
+  --hairline: #2e2e2e;
+  --hairline-soft: #282828;
+  --hairline-strong: #3d3d3d;
+  --ink-deep: #f5f5f5;
+  --ink: #ebebeb;
+  --charcoal: #d4d4d4;
+  --slate: #a3a3a3;
+  --steel: #8a8a8a;
+  --stone: #6b6b6b;
+  --muted: #525252;
+  --primary: #7c6fe0;
+  --primary-light: #9b91e8;
+  --primary-lighter: #3d3560;
+  --primary-surface: #1e1a35;
+  --accent-success: #34d399;
+  --accent-warning: #fbbf24;
+  --accent-danger: #f87171;
+  --accent-info: #60a5fa;
+  --bg-page-start: #191919;
+  --bg-page-end: #141414;
+  --bg-panel: #1f1f1f;
+  --border-panel: #2e2e2e;
+  --bg-sidebar: #1a1a1a;
+  --border-sidebar: #272727;
+  --bg-element: #242424;
+  --border-element: #2e2e2e;
+  --text-title: #f5f5f5;
+  --text-body: #d4d4d4;
+  --text-muted: #8a8a8a;
+  --shadow-color: rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 2px 8px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px -4px rgba(0, 0, 0, 0.4);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  
-  /* Custom UI Colors */
-  --color-primary: #758173;
-  --color-primary-light: #A9C5A0;
-  --color-primary-lighter: #C6DEC6;
-  --color-bg-subtle: #F5F7F5;
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-lighter: var(--primary-lighter);
+  --color-primary-surface: var(--primary-surface);
+  --color-bg-subtle: var(--bg-element);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ── Base ────────────────────────────────── */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-page-start);
+  color: var(--text-body);
+  font-family: 'Inter', -apple-system, system-ui, 'Segoe UI', Helvetica, Arial, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ── Panel & Card system ─────────────────── */
+.portal-outer {
+  background: var(--bg-page-start) !important;
+  transition: all 0.3s ease;
+}
+
+.portal-card {
+  background: var(--bg-panel) !important;
+  border-color: var(--border-panel) !important;
+  box-shadow: var(--shadow-md) !important;
+  border-radius: 16px !important;
+  transition: all 0.3s ease;
+}
+
+.portal-sidebar {
+  background-color: var(--bg-sidebar) !important;
+  border-color: var(--border-sidebar) !important;
+}
+
+.portal-sidebar-logo,
+.portal-sidebar-profile,
+.portal-sidebar-search {
+  background-color: var(--bg-panel) !important;
+  border-color: var(--border-element) !important;
+  color: var(--text-title) !important;
+  border-radius: 10px !important;
+  transition: all 0.2s ease;
+}
+
+.portal-sidebar-text-title {
+  color: var(--text-title) !important;
+}
+
+.portal-main {
+  background-color: var(--bg-page-start) !important;
+  color: var(--text-body) !important;
+}
+
+/* ── Auto-skin surfaces ──────────────────── */
+.bg-white {
+  background-color: var(--bg-panel) !important;
+  border-color: var(--border-element) !important;
+  transition: all 0.2s ease;
+}
+
+.bg-slate-50,
+.bg-slate-100 {
+  background-color: var(--bg-element) !important;
+  border-color: var(--border-element) !important;
+  transition: all 0.2s ease;
+}
+
+.border-slate-100,
+.border-slate-200 {
+  border-color: var(--border-element) !important;
+  transition: border-color 0.2s ease;
+}
+
+/* ── Typography ──────────────────────────── */
+h1, h2, h3, h4, h5 {
+  color: var(--text-title);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  transition: color 0.2s ease;
+}
+
+.text-slate-900, .text-slate-800, .text-slate-700 {
+  color: var(--text-title) !important;
+}
+
+.text-slate-650, .text-slate-600, .text-slate-500 {
+  color: var(--text-muted) !important;
+}
+
+.text-slate-400 {
+  color: var(--stone) !important;
+}
+
+/* ── Form elements ───────────────────────── */
+input, select, textarea {
+  background-color: var(--bg-element) !important;
+  border-color: var(--border-element) !important;
+  color: var(--text-title) !important;
+  border-radius: 10px !important;
+  font-size: 13px !important;
+  transition: all 0.2s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(91, 77, 199, 0.08) !important;
+  outline: none !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--stone) !important;
+  opacity: 0.7;
+}
+
+/* ── Tables ──────────────────────────────── */
+table th {
+  color: var(--text-muted) !important;
+  border-color: var(--border-element) !important;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+table tr {
+  border-color: var(--border-element) !important;
+  transition: background-color 0.15s ease;
+}
+
+table tr:hover {
+  background-color: var(--surface) !important;
+}
+
+.dark table tr:hover {
+  background-color: var(--surface-soft) !important;
+}
+
+/* ── Buttons ─────────────────────────────── */
+button:not(.rounded-full) {
+  border-radius: 10px !important;
+}
+
+/* ── Scrollbar ───────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--hairline-strong);
+  border-radius: 100px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--steel);
+}
+
+/* ── Animations ──────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out both;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.35s ease-out both;
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out both;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.25s ease-out both;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* Stagger animation delays */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+
+/* ── Focus ring ──────────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ── Selection ───────────────────────────── */
+::selection {
+  background: var(--primary-lighter);
+  color: var(--ink-deep);
+}
+
+.dark ::selection {
+  background: var(--primary);
+  color: white;
 }

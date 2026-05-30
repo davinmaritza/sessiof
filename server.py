@@ -7,26 +7,64 @@ import urllib.request
 import requests
 import json
 import threading
+import time
+import math
+import pickle
 from datetime import datetime
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-# Haar Cascade XML Detektor Wajah
-CASCADE_PATH = "haarcascade_frontalface_default.xml"
+# Model Deep Learning YuNet & SFace
+YUNET_URL = "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
+SFACE_URL = "https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx"
+YUNET_PATH = "face_detection_yunet_2023mar.onnx"
+SFACE_PATH = "face_recognition_sface_2021dec.onnx"
+
+def download_models():
+    for url, path_file in [(YUNET_URL, YUNET_PATH), (SFACE_URL, SFACE_PATH)]:
+        if not os.path.exists(path_file):
+            print(f"Mengunduh {path_file}...")
+            urllib.request.urlretrieve(url, path_file)
+            print(f"{path_file} berhasil diunduh.")
+
+download_models()
+
+# Inisialisasi Detektor YuNet & Pengenal SFace
+detector = cv2.FaceDetectorYN.create(YUNET_PATH, "", (320, 240))
+recognizer = cv2.FaceRecognizerSF.create(SFACE_PATH, "")
+
 EXCEL_FILE = "attendance.xlsx"
 GOOGLE_SHEETS_WEBHOOK_URL = ""
 METADATA_FILE = "students_metadata.json"
 DATASET_DIR = "dataset"
 
-face_cascade = cv2.CascadeClassifier(CASCADE_PATH)
-
-# Status Kamera
+# Status Kamera & Streaming
 camera_running = False
 camera_thread = None
 stop_camera_event = threading.Event()
+latest_frame = None
+frame_lock = threading.Lock()
+
+# Template embeddings database
+templates = {}
+
+def load_templates():
+    global templates
+    templates.clear()
+    if os.path.exists("embeddings.pkl"):
+        try:
+            with open("embeddings.pkl", "rb") as f:
+                emb_list = pickle.load(f)
+                for name, feat in emb_list:
+                    if name not in templates:
+                        templates[name] = []
+                    templates[name].append(feat)
+            print(f"Loaded SFace templates for {len(templates)} students.")
+        except Exception as e:
+            print(f"Gagal memuat templates: {e}")
 
 # --- UTILS METADATA ---
 def load_metadata():
@@ -42,16 +80,16 @@ def save_metadata(metadata):
     with open(METADATA_FILE, 'w') as f:
         json.dump(metadata, f, indent=4)
 
-# Fungsi untuk mendapatkan path folder siswa berdasarkan data metadata
 def get_student_dir(class_name, absent_no, name):
-    # Struktur: dataset/<kelas>/<no_absen> - <nama>
-    # Bersihkan nama folder agar aman dari karakter aneh
     safe_class = class_name.replace("/", "-").replace("\\", "-")
     safe_name = name.replace("/", "-").replace("\\", "-")
     return os.path.join(DATASET_DIR, safe_class, f"{absent_no} - {safe_name}")
 
 # --- PEREKAMAN ABSENSI KE EXCEL ---
+latest_scan = None
+
 def log_attendance(name):
+    global latest_scan
     metadata = load_metadata()
     student_info = metadata.get(name, {})
     kelas = student_info.get("class_name", "-")
@@ -82,8 +120,6 @@ def log_attendance(name):
     try:
         if os.path.exists(EXCEL_FILE):
             df_existing = pd.read_excel(EXCEL_FILE)
-            
-            # Clean up corrupted Unnamed columns that might cause shifting
             df_existing = df_existing.loc[:, ~df_existing.columns.str.contains('^Unnamed')]
             
             if df_existing.empty or "Nama" not in df_existing.columns:
@@ -107,7 +143,7 @@ def log_attendance(name):
             df_new.to_excel(EXCEL_FILE, index=False)
             
     except Exception as e:
-        print(f"Gagal mencatat absensi ke Excel (Pastikan file tidak sedang dibuka): {e}")
+        print(f"Gagal mencatat absensi ke Excel: {e}")
         return False
         
     if GOOGLE_SHEETS_WEBHOOK_URL and not sudah_absen_hari_ini:
@@ -121,101 +157,155 @@ def log_attendance(name):
         except Exception:
             pass
             
+    latest_scan = {
+        "name": name,
+        "class_name": kelas,
+        "absent_no": no_absen,
+        "time": waktu,
+        "is_duplicate": sudah_absen_hari_ini,
+        "timestamp": time.time()
+    }
+            
     return sudah_absen_hari_ini
 
+def distance(p1, p2):
+    return math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
+
 def attendance_loop():
-    global camera_running
+    global camera_running, latest_frame
     try:
-        if not os.path.exists("trainer.yml") or not os.path.exists("names.npy"):
-            return
-            
-        recognizer = cv2.face.LBPHFaceRecognizer_create()
-        recognizer.read("trainer.yml")
-        names = np.load("names.npy")
-        
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            print("ERROR: cv2.VideoCapture(0) gagal membuka kamera!")
+        load_templates()
+        if not templates:
+            print("ERROR: Database template wajah kosong!")
             camera_running = False
             return
             
-        print("SUCCESS: Kamera berhasil dibuka.")
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print("ERROR: Gagal membuka kamera!")
+            camera_running = False
+            return
+            
+        print("SUCCESS: Kamera absensi dimulai.")
         window_name = "Kamera Absensi Wajah - Tekan 'q' untuk keluar"
         
-        # Buffer untuk mencegah absensi salah sasaran akibat kedipan (flicker)
+        # Buffer verifikasi wajah
         attendance_buffer = {}
-        frame_counter = 0
+        # Landmark history untuk passive liveness verification
+        landmark_history = []
         
         while not stop_camera_event.is_set():
             success, frame = cap.read()
             if not success or frame is None:
                 break
                 
-            frame_counter += 1
-            if frame_counter % 30 == 0:
-                attendance_buffer.clear() # Reset buffer setiap ~1 detik agar tidak menumpuk
-                
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
+            h, w = frame.shape[:2]
+            detector.setInputSize((w, h))
+            retval, faces = detector.detect(frame)
             
-            for (x, y, w, h) in faces:
-                face_img = gray[y:y+h, x:x+w]
-                face_img = cv2.resize(face_img, (200, 200))
-                
-                label_id, confidence = recognizer.predict(face_img)
-                
-                if confidence < 65: # Threshold lebih ketat agar tidak salah orang
-                    student_name = names[label_id]
-                    match_percentage = int(100 - confidence)
-                    display_text = f"{student_name} ({match_percentage}%)"
+            recognized_any = False
+            
+            if faces is not None:
+                for face in faces:
+                    x, y, gw, gh = face[0:4].astype(int)
                     
-                    # Tambah hitungan frame untuk orang ini
-                    attendance_buffer[student_name] = attendance_buffer.get(student_name, 0) + 1
+                    # 1. PASIF Liveness Detection (Variasi Landmark + Laplacian Blur)
+                    # A. Kejelasan Gambar (Laplacian Variance)
+                    x_c = max(0, x)
+                    y_c = max(0, y)
+                    w_c = min(w - x_c, gw)
+                    h_c = min(h - y_c, gh)
+                    face_crop = frame[y_c:y_c+h_c, x_c:x_c+w_c]
                     
-                    # Butuh 10 frame yang konsisten berturut-turut untuk menganggapnya valid!
-                    if attendance_buffer[student_name] >= 10:
-                        box_color = (0, 255, 0)
-                        is_duplicate = log_attendance(student_name)
-                        status_text = "Sudah Absen Hari Ini" if is_duplicate else "ABSEN BERHASIL!"
-                        text_color = (255, 191, 0) if is_duplicate else (0, 255, 0)
+                    laplacian_var = 0.0
+                    if face_crop.size > 0:
+                        gray_crop = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
+                        laplacian_var = cv2.Laplacian(gray_crop, cv2.CV_64F).var()
                         
-                        # Render satu frame ekstra agar pesan sukses terlihat, lalu tutup
-                        cv2.rectangle(frame, (x, y), (x+w, y+h), box_color, 2)
-                        cv2.putText(frame, display_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, box_color, 2)
-                        cv2.putText(frame, status_text, (x, y + h + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, text_color, 2)
-                        cv2.imshow(window_name, frame)
-                        cv2.waitKey(1500)
-                        stop_camera_event.set()
-                        break
-                    else:
-                        box_color = (0, 255, 255)
-                        status_text = f"Memverifikasi... ({attendance_buffer[student_name]}/10)"
-                        text_color = (0, 255, 255)
-                        status_text = f"Memverifikasi... ({attendance_buffer[student_name]}/10)"
-                        text_color = (0, 255, 255)
-                elif confidence < 85: # Mirip tapi belum yakin
-                    student_name = names[label_id]
-                    match_percentage = int(100 - confidence)
-                    display_text = f"Mirip: {student_name}?"
-                    status_text = f"Kemiripan: {match_percentage}% (Tolong Diam/Lepas Masker)"
-                    box_color = (0, 165, 255) # Orange color in BGR
-                    text_color = (0, 165, 255)
-                else:
-                    display_text = "Unknown"
-                    status_text = "Wajah Tidak Dikenal"
-                    box_color = (0, 0, 255)
-                    text_color = (0, 0, 255)
+                    # B. Variasi Landmark (Micro-movement)
+                    landmark_history.append(face[4:14].copy())
+                    if len(landmark_history) > 10:
+                        landmark_history.pop(0)
+                        
+                    mean_var = 0.0
+                    if len(landmark_history) >= 5:
+                        arr = np.array(landmark_history)
+                        coord_vars = np.var(arr, axis=0)
+                        mean_var = np.mean(coord_vars)
+                        
+                    # Kriteria Liveness: Laplacian var >= 60 dan mean_var >= 0.03
+                    is_live = (laplacian_var >= 50.0) and (mean_var >= 0.03)
                     
-                cv2.rectangle(frame, (x, y), (x+w, y+h), box_color, 2)
-                cv2.putText(frame, display_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, box_color, 2)
-                cv2.putText(frame, status_text, (x, y + h + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, text_color, 2)
+                    # C. Pengenalan Wajah dengan SFace
+                    aligned_face = recognizer.alignCrop(frame, face)
+                    query_feat = recognizer.feature(aligned_face)
+                    
+                    best_match = None
+                    max_score = -1.0
+                    for name, feat_list in templates.items():
+                        for feat in feat_list:
+                            score = recognizer.match(query_feat, feat, cv2.FaceRecognizerSF_FR_COSINE)
+                            if score > max_score:
+                                max_score = score
+                                best_match = name
+                                
+                    # SFace Threshold Cosine Similarity: 0.363
+                    if max_score > 0.363:
+                        student_name = best_match
+                        match_percentage = int(max_score * 100)
+                        
+                        if is_live:
+                            display_text = f"{student_name} ({match_percentage}%) [LIVE]"
+                            box_color = (0, 255, 0)
+                            
+                            attendance_buffer[student_name] = attendance_buffer.get(student_name, 0) + 1
+                            if attendance_buffer[student_name] >= 8:
+                                is_duplicate = log_attendance(student_name)
+                                status_text = "Sudah Absen Hari Ini" if is_duplicate else "ABSEN BERHASIL!"
+                                text_color = (255, 191, 0) if is_duplicate else (0, 255, 0)
+                                
+                                cv2.rectangle(frame, (x, y), (x+gw, y+gh), box_color, 2)
+                                cv2.putText(frame, display_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, box_color, 2)
+                                cv2.putText(frame, status_text, (x, y + gh + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, text_color, 2)
+                                
+                                # Simpan frame terakhir
+                                with frame_lock:
+                                    latest_frame = frame.copy()
+                                    
+                                cv2.imshow(window_name, frame)
+                                cv2.waitKey(1500)
+                                stop_camera_event.set()
+                                break
+                            else:
+                                status_text = f"Memverifikasi... ({attendance_buffer[student_name]}/8)"
+                                text_color = (0, 255, 255)
+                        else:
+                            display_text = f"{student_name} ({match_percentage}%) [SPOOF DETECTED]"
+                            box_color = (0, 165, 255)
+                            status_text = "Harap Berkedip/Gerakkan Kepala"
+                            text_color = (0, 165, 255)
+                    else:
+                        display_text = "Unknown"
+                        status_text = "Wajah Tidak Dikenal"
+                        box_color = (0, 0, 255)
+                        text_color = (0, 0, 255)
+                        
+                    cv2.rectangle(frame, (x, y), (x+gw, y+gh), box_color, 2)
+                    cv2.putText(frame, display_text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, box_color, 2)
+                    cv2.putText(frame, status_text, (x, y + gh + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, text_color, 2)
+                    recognized_any = True
+                    
+            if not recognized_any:
+                landmark_history.clear()
+                attendance_buffer.clear()
+                
+            # Simpan frame untuk streaming
+            with frame_lock:
+                latest_frame = frame.copy()
                 
             cv2.imshow(window_name, frame)
-            
-            # Allow user to close by clicking 'X' on window
             if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
                 break
-                
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
                 
@@ -228,26 +318,40 @@ def attendance_loop():
 
 # --- API ENDPOINTS ---
 
-# 1. Status Server & Siswa Terdaftar (Scanning dataset berstruktur)
+# MJPEG Video Feed Endpoint
+def gen_frames():
+    global latest_frame, camera_running
+    while camera_running:
+        with frame_lock:
+            if latest_frame is None:
+                time.sleep(0.03)
+                continue
+            ret, buffer = cv2.imencode('.jpg', latest_frame)
+            frame_bytes = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        time.sleep(0.04)
+
+@app.route('/api/video_feed')
+def video_feed():
+    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
 @app.route('/api/status', methods=['GET'])
 def get_status():
     metadata = load_metadata()
     student_list = []
     
-    # Scan folder dataset secara rekursif: dataset/<kelas>/<no_absen> - <nama>
     if os.path.exists(DATASET_DIR):
         classes = [c for c in os.listdir(DATASET_DIR) if os.path.isdir(os.path.join(DATASET_DIR, c))]
         for cls in classes:
             class_path = os.path.join(DATASET_DIR, cls)
             students_folders = [s for s in os.listdir(class_path) if os.path.isdir(os.path.join(class_path, s))]
             for folder in students_folders:
-                # Mengurai nama folder, format: "<no_absen> - <nama>"
                 parts = folder.split(" - ", 1)
                 if len(parts) == 2:
                     absent_no, student_name = parts
                     info = metadata.get(student_name, {})
                     
-                    # Hitung jumlah foto wajah tersimpan
                     folder_path = os.path.join(class_path, folder)
                     photos = [f for f in os.listdir(folder_path) if f.endswith(".jpg")]
                     
@@ -255,17 +359,19 @@ def get_status():
                         "name": student_name,
                         "class_name": info.get("class_name", cls),
                         "absent_no": info.get("absent_no", absent_no),
-                        "photo_count": len(photos)
+                        "photo_count": len(photos),
+                        "username": info.get("username", f"{student_name.lower().replace(' ', '')}"),
+                        "password": info.get("password", "12345")
                     })
             
     return jsonify({
         "camera_running": camera_running,
         "total_students": len(student_list),
         "students": student_list,
-        "model_exists": os.path.exists("trainer.yml")
+        "model_exists": os.path.exists("embeddings.pkl"),
+        "latest_scan": latest_scan
     })
 
-# 2. CRUD: Tambah  Siswa Baru (Buat Folder Struktur Baru)
 @app.route('/api/students', methods=['POST'])
 def add_student():
     data = request.json
@@ -282,18 +388,70 @@ def add_student():
         
     os.makedirs(student_dir, exist_ok=True)
     
-    # Simpan metadata
     metadata = load_metadata()
+    # Buat username & password default jika belum ada
+    default_user = name.lower().replace(" ", "")
     metadata[name] = {
         "name": name,
         "class_name": class_name,
-        "absent_no": absent_no
+        "absent_no": absent_no,
+        "username": default_user,
+        "password": "12345"
     }
     save_metadata(metadata)
     
     return jsonify({"message": f"Siswa '{name}' ({class_name}) berhasil didaftarkan."})
 
-# 3. CRUD: Edit Profil Siswa (Rename Folder Struktur Baru)
+# Endpoint Log Masuk Siswa
+@app.route('/api/student/login', methods=['POST'])
+def student_login():
+    data = request.json
+    username = data.get("username", "").strip().lower()
+    password = data.get("password", "").strip()
+    
+    if not username or not password:
+        return jsonify({"error": "Username dan password wajib diisi!"}), 400
+        
+    metadata = load_metadata()
+    for student_name, info in metadata.items():
+        curr_user = info.get("username", student_name.lower().replace(" ", "")).lower()
+        curr_pass = str(info.get("password", "12345"))
+        
+        if curr_user == username and curr_pass == password:
+            return jsonify({
+                "success": True,
+                "name": student_name,
+                "class_name": info.get("class_name", "-"),
+                "absent_no": info.get("absent_no", "-")
+            })
+            
+    return jsonify({"error": "Username atau password siswa salah!"}), 401
+
+# Endpoint Update Kredensial Siswa oleh Admin/Siswa
+@app.route('/api/students/<name>/credentials', methods=['PUT'])
+def update_credentials(name):
+    data = request.json
+    new_username = data.get("username", "").strip().lower()
+    new_password = data.get("password", "").strip()
+    
+    if not new_username or not new_password:
+        return jsonify({"error": "Username dan password baru tidak boleh kosong!"}), 400
+        
+    metadata = load_metadata()
+    if name not in metadata:
+        return jsonify({"error": f"Siswa '{name}' tidak ditemukan di metadata."}), 404
+        
+    # Validasi duplikasi username
+    for s_name, info in metadata.items():
+        if s_name != name and info.get("username", "").lower() == new_username:
+            return jsonify({"error": "Username sudah digunakan oleh siswa lain!"}), 400
+            
+    metadata[name]["username"] = new_username
+    metadata[name]["password"] = new_password
+    save_metadata(metadata)
+    
+    return jsonify({"message": f"Kredensial login untuk siswa '{name}' berhasil diperbarui."})
+
 @app.route('/api/students/<name>', methods=['PUT'])
 def edit_student(name):
     data = request.json
@@ -315,34 +473,34 @@ def edit_student(name):
     if not os.path.exists(old_dir):
         return jsonify({"error": f"Folder lama siswa '{name}' tidak ditemukan."}), 404
         
-    # Pindahkan folder jika ada perubahan kelas, absen, atau nama
     if old_dir != new_dir:
         if os.path.exists(new_dir):
             return jsonify({"error": "Lokasi/nama siswa baru sudah digunakan"}), 400
         
-        # Buat folder kelas baru jika belum ada
         os.makedirs(os.path.dirname(new_dir), exist_ok=True)
         shutil.move(old_dir, new_dir)
         
-        # Bersihkan folder kelas lama jika kosong
         old_class_dir = os.path.dirname(old_dir)
         if os.path.exists(old_class_dir) and len(os.listdir(old_class_dir)) == 0:
             os.rmdir(old_class_dir)
         
-    # Update metadata
+    username = old_info.get("username", new_name.lower().replace(" ", ""))
+    password = old_info.get("password", "12345")
+
     if name in metadata:
         del metadata[name]
         
     metadata[new_name] = {
         "name": new_name,
         "class_name": class_name,
-        "absent_no": absent_no
+        "absent_no": absent_no,
+        "username": username,
+        "password": password
     }
     save_metadata(metadata)
     
     return jsonify({"message": f"Data profil siswa '{new_name}' berhasil diperbarui."})
 
-# 4. CRUD: Hapus Siswa
 @app.route('/api/students/<name>', methods=['DELETE'])
 def delete_student(name):
     metadata = load_metadata()
@@ -359,18 +517,11 @@ def delete_student(name):
         
     shutil.rmtree(student_dir)
     
-    # Hapus folder kelas jika kosong setelah siswa dihapus (DINONAKTIFKAN SESUAI REQUEST)
-    # class_dir = os.path.dirname(student_dir)
-    # if os.path.exists(class_dir) and len(os.listdir(class_dir)) == 0:
-    #     os.rmdir(class_dir)
-        
-    # Hapus dari metadata
     del metadata[name]
     save_metadata(metadata)
         
     return jsonify({"message": f"Siswa '{name}' berhasil dihapus."})
 
-# 5. Registrasi Foto Kamera
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.json
@@ -396,18 +547,20 @@ def register():
         if not success:
             break
             
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
+        h, w = frame.shape[:2]
+        detector.setInputSize((w, h))
+        retval, faces = detector.detect(frame)
         
-        for (x, y, w, h) in faces:
-            count += 1
-            face_img = gray[y:y+h, x:x+w]
-            face_img = cv2.resize(face_img, (200, 200))
-            cv2.imwrite(os.path.join(student_dir, f"{count}.jpg"), face_img)
-            
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
-            cv2.putText(frame, f"Foto: {count}/30", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
-            
+        if faces is not None:
+            for face in faces:
+                count += 1
+                aligned_face = recognizer.alignCrop(frame, face)
+                cv2.imwrite(os.path.join(student_dir, f"{count}.jpg"), aligned_face)
+                
+                box = face[0:4].astype(int)
+                cv2.rectangle(frame, (box[0], box[1]), (box[0]+box[2], box[1]+box[3]), (255, 0, 0), 2)
+                cv2.putText(frame, f"Foto: {count}/30", (box[0], box[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+                
         cv2.imshow("Registrasi Wajah - Jangan Bergerak", frame)
         if cv2.waitKey(100) & 0xFF == ord('q'):
             break
@@ -420,7 +573,6 @@ def register():
     else:
         return jsonify({"error": "Proses foto dibatalkan"}), 400
 
-# 6. Upload Foto Wajah
 @app.route('/api/upload-face', methods=['POST'])
 def upload_face():
     name = request.form.get("name", "").strip()
@@ -440,13 +592,13 @@ def upload_face():
     if img is None:
         return jsonify({"error": "Format gambar tidak valid"}), 400
         
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
+    h, w = img.shape[:2]
+    detector.setInputSize((w, h))
+    retval, faces = detector.detect(img)
     
-    if len(faces) == 0:
+    if faces is None or len(faces) == 0:
         return jsonify({"error": "Wajah tidak terdeteksi dalam foto! Pastikan wajah terlihat jelas."}), 400
         
-    # Dapatkan info direktori terstruktur
     metadata = load_metadata()
     info = metadata.get(name, {})
     class_name = info.get("class_name", "-")
@@ -458,30 +610,23 @@ def upload_face():
     existing_files = [f for f in os.listdir(student_dir) if f.endswith(".jpg")]
     next_index = len(existing_files) + 1
     
-    (x, y, w, h) = faces[0]
-    face_img = gray[y:y+h, x:x+w]
-    face_img = cv2.resize(face_img, (200, 200))
-    
+    aligned_face = recognizer.alignCrop(img, faces[0])
     save_path = os.path.join(student_dir, f"{next_index}.jpg")
-    cv2.imwrite(save_path, face_img)
+    cv2.imwrite(save_path, aligned_face)
     
     return jsonify({
         "message": f"Wajah berhasil dipindai! Tersimpan sebagai file ke-{next_index} untuk {name}.",
         "next_index": next_index
     })
 
-# 7. Training Model Wajah (Melalui folder terstruktur dataset/<kelas>/<no_absen> - <nama>)
 @app.route('/api/train', methods=['POST'])
 def train():
     if not os.path.exists(DATASET_DIR):
         return jsonify({"error": "Folder dataset tidak ditemukan"}), 400
         
-    faces = []
-    ids = []
+    embeddings_list = []
     name_list = []
-    id_counter = 0
     
-    # Scanning terstruktur
     classes = [c for c in os.listdir(DATASET_DIR) if os.path.isdir(os.path.join(DATASET_DIR, c))]
     for cls in classes:
         class_path = os.path.join(DATASET_DIR, cls)
@@ -501,22 +646,29 @@ def train():
                 
                 for img_name in photos:
                     img_path = os.path.join(folder_path, img_name)
-                    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+                    img = cv2.imread(img_path)
                     if img is not None:
-                        faces.append(img)
-                        ids.append(id_counter)
-                
-                id_counter += 1
-                
-    if len(faces) == 0:
+                        h, w = img.shape[:2]
+                        # Jika sudah ter-align 112x112
+                        if w == 112 and h == 112:
+                            feat = recognizer.feature(img)
+                            embeddings_list.append((student_name, feat))
+                        else:
+                            detector.setInputSize((w, h))
+                            retval, faces = detector.detect(img)
+                            if faces is not None:
+                                aligned_face = recognizer.alignCrop(img, faces[0])
+                                feat = recognizer.feature(aligned_face)
+                                embeddings_list.append((student_name, feat))
+                                
+    if len(embeddings_list) == 0:
         return jsonify({"error": "Tidak ada foto wajah siswa terdaftar yang siap ditraining."}), 400
         
-    recognizer = cv2.face.LBPHFaceRecognizer_create()
-    recognizer.train(faces, np.array(ids))
-    recognizer.write("trainer.yml")
+    with open("embeddings.pkl", "wb") as f:
+        pickle.dump(embeddings_list, f)
     np.save("names.npy", np.array(name_list))
     
-    return jsonify({"message": f"Model berhasil ditraining dengan {len(name_list)} siswa.", "students": name_list})
+    return jsonify({"message": f"Model SFace berhasil diekstraksi untuk {len(name_list)} siswa.", "students": name_list})
 
 # --- CLASS MANAGEMENT ---
 @app.route('/api/classes', methods=['GET'])
@@ -606,14 +758,13 @@ def delete_class(class_name):
     
     return jsonify({"message": f"Kelas '{class_name}' beserta data siswanya berhasil dihapus."})
 
-# 8. Kamera Absensi Mulai/Berhenti
 @app.route('/api/start', methods=['POST'])
 def start_camera():
     global camera_running, camera_thread
     if camera_running:
         return jsonify({"message": "Kamera absensi sudah berjalan"})
         
-    if not os.path.exists("trainer.yml"):
+    if not os.path.exists("embeddings.pkl"):
         return jsonify({"error": "Model wajah belum ditraining. Silakan lakukan training terlebih dahulu"}), 400
         
     camera_running = True
@@ -644,9 +795,7 @@ def migrate_dataset():
         if not class_name or not absent_no:
             continue
         
-        # Folder model lama (tidak terstruktur)
         old_dir = os.path.join(DATASET_DIR, name)
-        # Folder model baru (terstruktur)
         new_dir = get_student_dir(class_name, absent_no, name)
         
         if os.path.exists(old_dir) and not os.path.exists(new_dir):

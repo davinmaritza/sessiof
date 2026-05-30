@@ -41,9 +41,11 @@ export default function AttendancePage() {
   const [selectedMonth, setSelectedMonth] = useState('Semua');
   const [selectedClass, setSelectedClass] = useState('Semua');
   const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date();
-    const tzOffset = today.getTimezoneOffset() * 60000;
-    return new Date(today.getTime() - tzOffset).toISOString().split('T')[0];
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   });
   const [studentsData, setStudentsData] = useState<any[]>([]);
   const [actionStatus, setActionStatus] = useState('');

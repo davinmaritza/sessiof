@@ -33,6 +33,7 @@ export default function SettingsPage() {
       });
       if (res.ok) {
         setStatus('✅ Pengaturan berhasil disimpan!');
+        window.dispatchEvent(new Event('settings-updated'));
         setTimeout(() => setStatus(''), 3000);
       } else {
         setStatus('❌ Gagal menyimpan pengaturan.');
@@ -52,7 +53,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-8">
-        
+
         {/* Pengaturan Waktu Absensi */}
         <div>
           <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 mb-4">Pengaturan Waktu Absensi</h3>
@@ -60,8 +61,8 @@ export default function SettingsPage() {
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
               <label className="font-bold text-slate-900 text-xs block mb-1">Batas Jam Kedatangan (Tepat Waktu)</label>
               <p className="text-[10px] text-slate-500 font-medium mb-3">Siswa yang hadir setelah jam ini akan dihitung Terlambat.</p>
-              <input 
-                type="time" 
+              <input
+                type="time"
                 value={settings.arrivalTime}
                 onChange={(e) => handleChange('arrivalTime', e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:border-primary transition-all"
@@ -70,8 +71,8 @@ export default function SettingsPage() {
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
               <label className="font-bold text-slate-900 text-xs block mb-1">Batas Jam Kepulangan</label>
               <p className="text-[10px] text-slate-500 font-medium mb-3">Jam minimal siswa diizinkan pulang.</p>
-              <input 
-                type="time" 
+              <input
+                type="time"
                 value={settings.departureTime}
                 onChange={(e) => handleChange('departureTime', e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:border-primary transition-all"
@@ -84,7 +85,7 @@ export default function SettingsPage() {
         <div>
           <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 mb-4">Pengaturan Sistem</h3>
           <div className="space-y-4">
-            <div 
+            <div
               onClick={() => handleChange('desktopNotifications', !settings.desktopNotifications)}
               className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
             >
@@ -97,7 +98,7 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div 
+            <div
               onClick={() => handleChange('darkMode', !settings.darkMode)}
               className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
             >
@@ -109,8 +110,8 @@ export default function SettingsPage() {
                 <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${settings.darkMode ? 'right-0.5' : 'left-0.5'}`}></div>
               </div>
             </div>
-            
-            <div 
+
+            <div
               onClick={() => handleChange('autoBackup', !settings.autoBackup)}
               className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
             >
@@ -126,7 +127,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="pt-4 flex items-center gap-4">
-          <button 
+          <button
             onClick={handleSave}
             className="bg-primary hover:bg-primary-light text-white text-xs font-bold px-6 py-2.5 rounded-xl transition-all shadow-md active:scale-95"
           >

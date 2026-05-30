@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface Student {
   name: string;
@@ -26,32 +26,41 @@ interface ServerStatus {
   total_students: number;
   students: Student[];
   model_exists: boolean;
+  latest_scan?: {
+    name: string;
+    class_name: string;
+    absent_no: string;
+    time: string;
+    is_duplicate: boolean;
+    timestamp: number;
+  } | null;
 }
 
 export default function DashboardPage() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [serverStatus, setServerStatus] = useState<ServerStatus>({
-    camera_running: false,
-    total_students: 0,
-    students: [],
-    model_exists: false
+    camera_running: false, total_students: 0, students: [], model_exists: false
   });
   const [actionStatus, setActionStatus] = useState('');
   const [agendaData, setAgendaData] = useState<any>({
-    agenda: [],
-    academic_calendar: { active_date: 3, events: [] }
+    agenda: [], academic_calendar: { active_date: 3, events: [] }
   });
-  const [settings, setSettings] = useState({
-    arrivalTime: '06:30',
-    departureTime: '15:00'
+  const [settings, setSettings] = useState({ 
+    arrivalTime: '06:30', 
+    departureTime: '15:00',
+    desktopNotifications: false,
+    darkMode: false,
+    autoBackup: false
   });
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<any>(null);
+  const [eventForm, setEventForm] = useState({ title: '', type: 'Online', time: '', icon: 'calendar' });
+  const lastScanTimestampRef = useRef<number>(0);
 
-  // Get current week dates (Monday to Sunday)
   const getCurrentWeekDates = () => {
     const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 is Sunday, 1 is Monday, etc.
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // How many days to Monday
-    
+    const dayOfWeek = today.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     const weekDates = [];
     for (let i = 0; i < 7; i++) {
       const date = new Date(today);
@@ -66,13 +75,9 @@ export default function DashboardPage() {
   };
   const weekDates = getCurrentWeekDates();
 
-  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
-  const [editingEvent, setEditingEvent] = useState<any>(null);
-  const [eventForm, setEventForm] = useState({ title: '', type: 'Online', time: '', icon: '📅' });
-
   const handleOpenAddEvent = () => {
     setEditingEvent(null);
-    setEventForm({ title: '', type: 'Online', time: '', icon: '📅' });
+    setEventForm({ title: '', type: 'Online', time: '', icon: 'calendar' });
     setIsEventModalOpen(true);
   };
 
@@ -86,19 +91,14 @@ export default function DashboardPage() {
   const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!eventForm.title.trim()) return;
-
     try {
       const isEdit = !!editingEvent;
-      const url = '/api/agenda';
-      const method = isEdit ? 'PUT' : 'POST';
       const body = isEdit ? { id: editingEvent.id, ...eventForm } : eventForm;
-
-      const res = await fetch(url, {
-        method,
+      const res = await fetch('/api/agenda', {
+        method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
-
       if (res.ok) {
         setIsEventModalOpen(false);
         fetchAgenda();
@@ -110,14 +110,10 @@ export default function DashboardPage() {
 
   const handleDeleteEvent = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Apakah Anda yakin ingin menghapus agenda ini?')) return;
+    if (!confirm('Hapus agenda ini?')) return;
     try {
-      const res = await fetch(`/api/agenda?id=${id}`, {
-        method: 'DELETE'
-      });
-      if (res.ok) {
-        fetchAgenda();
-      }
+      const res = await fetch(`/api/agenda?id=${id}`, { method: 'DELETE' });
+      if (res.ok) fetchAgenda();
     } catch (err) {
       console.error('Error deleting event:', err);
     }
@@ -128,11 +124,10 @@ export default function DashboardPage() {
       const res = await fetch('/api/attendance');
       if (res.ok) {
         const data = await res.json();
-        setRecords(data.reverse());
+        const active = data.filter((r: any) => r.Status !== 'Dihapus');
+        setRecords(active.reverse());
       }
-    } catch (error) {
-      console.error('Error fetching logs:', error);
-    }
+    } catch (error) { console.error('Error fetching logs:', error); }
   };
 
   const fetchServerStatus = async () => {
@@ -141,48 +136,56 @@ export default function DashboardPage() {
       if (res.ok) {
         const data = await res.json();
         setServerStatus(data);
+        if (data.latest_scan && data.latest_scan.timestamp > lastScanTimestampRef.current) {
+          if (lastScanTimestampRef.current === 0) {
+            lastScanTimestampRef.current = data.latest_scan.timestamp;
+          } else {
+            lastScanTimestampRef.current = data.latest_scan.timestamp;
+            const isDup = data.latest_scan.is_duplicate;
+            const studentName = data.latest_scan.name;
+            const scanTime = data.latest_scan.time;
+            const message = isDup
+              ? `Siswa ${studentName} sudah absen hari ini (${scanTime}).`
+              : `Absen berhasil: ${studentName} telah hadir (${scanTime}).`;
+            const type = isDup ? 'error' : 'success';
+            
+            window.dispatchEvent(new CustomEvent('show-toast', { detail: { message, type } }));
+            
+            if (typeof window !== 'undefined' && 'Notification' in window) {
+              if (Notification.permission === 'granted') {
+                new Notification('Sessiof Absensi Wajah', { body: message });
+              }
+            }
+          }
+        }
       }
-    } catch (error) {
-      console.error('Python server offline:', error);
-    }
+    } catch (error) { console.error('Python server offline:', error); }
   };
 
   const fetchAgenda = async () => {
     try {
       const res = await fetch('/api/agenda');
-      if (res.ok) {
-        const data = await res.json();
-        setAgendaData(data);
-      }
-    } catch (error) {
-      console.error('Error fetching agenda:', error);
-    }
+      if (res.ok) setAgendaData(await res.json());
+    } catch (error) { console.error('Error fetching agenda:', error); }
   };
 
   const fetchSettings = async () => {
     try {
       const res = await fetch('/api/settings');
-      if (res.ok) {
-        const data = await res.json();
-        setSettings(data);
-      }
-    } catch (error) {
-      console.error('Error fetching settings:', error);
-    }
+      if (res.ok) setSettings(await res.json());
+    } catch (error) { console.error('Error fetching settings:', error); }
   };
 
   useEffect(() => {
-    fetchAttendance();
-    fetchServerStatus();
-    fetchAgenda();
-    fetchSettings();
-
-    const interval = setInterval(() => {
-      fetchAttendance();
-      fetchServerStatus();
-      fetchAgenda();
-    }, 3000);
-
+    fetchAttendance(); fetchServerStatus(); fetchAgenda(); fetchSettings();
+    const interval = setInterval(() => { fetchAttendance(); fetchServerStatus(); fetchAgenda(); }, 3000);
+    
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+    
     return () => clearInterval(interval);
   }, []);
 
@@ -190,376 +193,347 @@ export default function DashboardPage() {
     try {
       const res = await fetch('http://localhost:5000/api/start', { method: 'POST' });
       const data = await res.json();
-      if (res.ok) {
-        fetchServerStatus();
-        setActionStatus(`Sukses: ${data.message}`);
-      } else {
-        setActionStatus(`Error: ${data.error || data.message}`);
-      }
-    } catch (error) {
-      setActionStatus('Gagal menghubungi server Python.');
-    }
+      setActionStatus(res.ok ? `Sukses: ${data.message}` : `Error: ${data.error || data.message}`);
+      fetchServerStatus();
+    } catch (error) { setActionStatus('Gagal menghubungi server Python.'); }
   };
 
   const handleStopCamera = async () => {
     try {
       const res = await fetch('http://localhost:5000/api/stop', { method: 'POST' });
       const data = await res.json();
-      if (res.ok) {
-        fetchServerStatus();
-        setActionStatus(`Sukses: ${data.message}`);
-      } else {
-        setActionStatus(`Error: ${data.error || data.message}`);
-      }
-    } catch (error) {
-      setActionStatus('Gagal menghentikan kamera.');
-    }
+      setActionStatus(res.ok ? `Sukses: ${data.message}` : `Error: ${data.error || data.message}`);
+      fetchServerStatus();
+    } catch (error) { setActionStatus('Gagal menghentikan kamera.'); }
   };
 
   // Metrics
   const totalStudents = serverStatus.total_students;
   const today = new Date().getDate().toString();
-  const presentToday = new Set(
-    records.filter((r) => r.Tanggal.toString() === today).map((r) => r.Nama)
-  ).size;
+  const presentToday = new Set(records.filter((r) => r.Tanggal.toString() === today).map((r) => r.Nama)).size;
   const absentStudents = Math.max(0, totalStudents - presentToday);
   const presenceRate = totalStudents > 0 ? ((presentToday / totalStudents) * 100).toFixed(1) : '0.0';
 
-  // Stats calculation from records
-  let tepatWaktu = 0;
-  let terlambat = 0;
-  let sakitIzin = 0;
-  
+  let tepatWaktu = 0, terlambat = 0, sakitIzin = 0;
   records.forEach(r => {
-    if (r.Status === 'Izin' || r.Status === 'Sakit') {
-      sakitIzin++;
-    } else if (r['Waktu Absen'] && r.Status !== 'Alpa') {
-      // Bandingkan dengan settings.arrivalTime
-      // Format Waktu Absen: "07:15:30", Format arrivalTime: "06:30"
-      const limit = settings.arrivalTime + ":00";
-      if (r['Waktu Absen'] > limit) {
-        terlambat++;
-      } else {
-        tepatWaktu++;
-      }
+    if (r.Status === 'Izin' || r.Status === 'Sakit') sakitIzin++;
+    else if (r['Waktu Absen'] && r.Status !== 'Alpa') {
+      if (r['Waktu Absen'] > settings.arrivalTime + ":00") terlambat++;
+      else tepatWaktu++;
     }
   });
-  
   const totalLogs = records.filter(r => r.Status !== 'Alpa').length || 1;
   const tepatWaktuPct = Math.round((tepatWaktu / totalLogs) * 100);
   const terlambatPct = Math.round((terlambat / totalLogs) * 100);
   const sakitIzinPct = Math.round((sakitIzin / totalLogs) * 100);
 
-  // Basic SVG Line Chart logic dynamic from data
   const getMonthlyData = () => {
     const monthlyCounts = new Array(12).fill(0);
-    
     const getMonthIndex = (monthStr: string) => {
       const parsed = parseInt(monthStr);
-      if (!isNaN(parsed)) return parsed - 1; 
-      
+      if (!isNaN(parsed)) return parsed - 1;
       const names = ['january','february','march','april','may','june','july','august','september','october','november','december'];
       const idNames = ['januari','februari','maret','april','mei','juni','juli','agustus','september','oktober','november','desember'];
-      
       const lower = monthStr.toLowerCase();
       let idx = names.findIndex(n => lower.startsWith(n.substring(0,3)));
       if (idx === -1) idx = idNames.findIndex(n => lower.startsWith(n.substring(0,3)));
       return idx;
     };
-
     records.forEach(r => {
       if (r.Bulan) {
         const m = getMonthIndex(r.Bulan.toString());
-        if (m >= 0 && m < 12) {
-          monthlyCounts[m]++;
-        }
+        if (m >= 0 && m < 12) monthlyCounts[m]++;
       }
     });
     return monthlyCounts;
   };
   const chartData = getMonthlyData();
-  
   const generatePath = (data: number[]) => {
-    const max = Math.max(...data, 10); // at least 10 for scale
+    const max = Math.max(...data, 10);
     return data.map((d, i) => {
       const x = (i / (data.length - 1)) * 100;
       const y = 100 - (d / max) * 100;
       return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
     }).join(' ');
   };
+  const generateAreaPath = (data: number[]) => {
+    const max = Math.max(...data, 10);
+    const points = data.map((d, i) => {
+      const x = (i / (data.length - 1)) * 100;
+      const y = 100 - (d / max) * 100;
+      return `${x} ${y}`;
+    });
+    return `M 0 100 L ${points.map((p, i) => `${i === 0 ? '' : 'L '}${p}`).join(' ')} L 100 100 Z`;
+  };
+
+  const StudentInitials = ({ name }: { name: string }) => {
+    const initials = name.trim().split(/\s+/).map(n => n[0]).slice(0, 2).join('').toUpperCase();
+    return (
+      <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0"
+        style={{ background: 'var(--primary-surface)', color: 'var(--primary)' }}>
+        {initials || '?'}
+      </div>
+    );
+  };
+
+  const metricCards = [
+    { label: 'Total Siswa', value: totalStudents, icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+      </svg>
+    )},
+    { label: 'Hadir Hari Ini', value: presentToday, icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    )},
+    { label: 'Belum Hadir', value: absentStudents, icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    )},
+  ];
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col xl:flex-row gap-6 animate-fade-in text-slate-800">
+    <div className="flex-1 overflow-y-auto p-5 md:p-7 flex flex-col xl:flex-row gap-6 animate-fade-in">
       
-      {/* LEFT COLUMN: Main Dashboard (70%) */}
+      {/* LEFT COLUMN */}
       <div className="flex-1 space-y-6 min-w-0">
         
-        {/* HEADER */}
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Selamat Datang, Admin</h2>
-            <p className="text-xs text-slate-500 font-medium mt-1">Laporan singkat metrik absensi sekolah dan wawasan aktivitas siswa.</p>
+            <h2 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--text-title)' }}>Selamat Datang, Admin</h2>
+            <p className="text-[13px] mt-1" style={{ color: 'var(--text-muted)' }}>Ringkasan aktivitas absensi hari ini.</p>
           </div>
-          
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             {serverStatus.camera_running ? (
-              <button onClick={handleStopCamera} className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm">
-                🛑 Hentikan Scan
+              <button onClick={handleStopCamera} className="bg-red-500 hover:bg-red-600 text-white text-[13px] font-semibold px-4 py-2 rounded-lg transition-all flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z" />
+                </svg>
+                Hentikan Scan
               </button>
             ) : (
-              <button onClick={handleStartCamera} className="bg-primary hover:bg-primary-light text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm">
-                🟢 Mulai Absensi
+              <button onClick={handleStartCamera} className="text-white text-[13px] font-semibold px-4 py-2 rounded-lg transition-all flex items-center gap-2"
+                style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}>
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+                </svg>
+                Mulai Absensi
               </button>
             )}
-            <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm cursor-pointer">
-              <span>📅 Mar 24 - Mar 29 2025</span>
-              <span className="ml-2 text-[10px]">›</span>
-            </div>
-            <div className="flex items-center justify-center bg-white border border-slate-200 rounded-xl w-9 h-9 shadow-sm cursor-pointer hover:bg-slate-50">
-              🔍
-            </div>
-            <div className="flex items-center justify-center bg-white border border-slate-200 rounded-xl w-9 h-9 shadow-sm cursor-pointer hover:bg-slate-50 relative">
-              🔔
-              <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-            </div>
           </div>
         </div>
 
         {actionStatus && (
-          <div className="bg-primary-lighter/30 border border-primary-light text-primary rounded-xl p-3 text-xs font-bold flex justify-between items-center shadow-sm">
+          <div className="rounded-lg p-3 text-[13px] font-medium flex justify-between items-center animate-slide-up"
+            style={{ background: 'var(--primary-surface)', color: 'var(--primary)', border: '1px solid var(--primary-lighter)' }}>
             <span>{actionStatus}</span>
-            <button onClick={() => setActionStatus('')} className="hover:text-primary-light">✕</button>
+            <button onClick={() => setActionStatus('')} className="hover:opacity-70 ml-3">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         )}
 
-        {/* 3 METRIC CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between h-32 hover:border-primary-light transition-colors">
-            <div className="flex justify-between items-start">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                <span>👥</span> Total Siswa
-              </div>
+        {/* Live Camera */}
+        {serverStatus.camera_running && (
+          <div className="rounded-xl p-5 flex flex-col md:flex-row gap-5 items-center animate-slide-up"
+            style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-panel)' }}>
+            <div className="w-full md:w-2/3 max-w-lg aspect-video rounded-lg overflow-hidden bg-black relative">
+              <img src="http://localhost:5000/api/video_feed" alt="Live Camera Feed" className="w-full h-full object-cover" />
+              <span className="absolute top-3 left-3 bg-red-500 text-white text-[10px] font-semibold px-2 py-0.5 rounded-md flex items-center gap-1.5 animate-pulse-soft">
+                <span className="w-1.5 h-1.5 bg-white rounded-full"></span> Live
+              </span>
             </div>
-            <div className="flex items-end justify-between mt-4">
-              <span className="text-3xl font-black text-slate-900">{totalStudents}</span>
-              <div className="flex items-center justify-between w-full ml-4 text-[10px] font-bold">
-                <span className="text-slate-400">Last Week</span>
-                <span className="text-primary">+3.1%</span>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between h-32 hover:border-primary-light transition-colors">
-            <div className="flex justify-between items-start">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                <span>📑</span> Hadir Hari Ini
-              </div>
-            </div>
-            <div className="flex items-end justify-between mt-4">
-              <span className="text-3xl font-black text-slate-900">{presentToday}</span>
-              <div className="flex items-center justify-between w-full ml-4 text-[10px] font-bold">
-                <span className="text-slate-400">Last Week</span>
-                <span className="text-red-500">-1.1%</span>
+            <div className="flex-1 space-y-2">
+              <h4 className="font-semibold text-[14px]" style={{ color: 'var(--text-title)' }}>Kamera Absensi Aktif</h4>
+              <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                Sistem sedang mendeteksi wajah siswa secara real-time menggunakan model deep learning YuNet dan SFace.
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                <span className="text-[12px] font-medium" style={{ color: 'var(--text-muted)' }}>Menunggu deteksi wajah...</span>
               </div>
             </div>
           </div>
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between h-32 hover:border-primary-light transition-colors">
-            <div className="flex justify-between items-start">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                <span>⭐</span> Belum Hadir / Absen
+        )}
+
+        {/* Metric Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {metricCards.map((card, i) => (
+            <div key={i} className={`rounded-xl p-5 flex flex-col justify-between h-[120px] transition-all duration-200 hover:shadow-md animate-slide-up stagger-${i+1}`}
+              style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-panel)' }}>
+              <div className="flex items-center gap-2 text-[13px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                <span style={{ color: 'var(--primary)', opacity: 0.7 }}>{card.icon}</span>
+                {card.label}
               </div>
+              <span className="text-[28px] font-semibold tracking-tight" style={{ color: 'var(--text-title)' }}>{card.value}</span>
             </div>
-            <div className="flex items-end justify-between mt-4">
-              <span className="text-3xl font-black text-slate-900">{absentStudents}</span>
-              <div className="flex items-center justify-between w-full ml-4 text-[10px] font-bold">
-                <span className="text-slate-400">Last Week</span>
-                <span className="text-primary">+2.0%</span>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
-        {/* ATTENDANCE SUMMARY CHART */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <div className="flex justify-between items-start mb-6">
-            <div className="flex gap-2 items-center">
-              <span className="text-sm">📊</span>
-              <h3 className="font-bold text-slate-900 text-sm">Ringkasan Absensi</h3>
+        {/* Chart */}
+        <div className="rounded-xl p-6 animate-slide-up stagger-4" style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-panel)' }}>
+          <div className="flex justify-between items-start mb-5">
+            <div>
+              <h3 className="font-semibold text-[14px]" style={{ color: 'var(--text-title)' }}>Ringkasan Absensi</h3>
+              <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Tren kehadiran bulanan tahun ini</p>
             </div>
-            <span className="text-primary text-xs font-bold cursor-pointer">See Detail</span>
           </div>
           
-          <div className="flex flex-wrap items-end gap-8 mb-8 border-b border-slate-100 pb-4">
+          <div className="flex flex-wrap items-end gap-6 mb-6 pb-4" style={{ borderBottom: '1px solid var(--border-element)' }}>
             <div>
-              <div className="text-[10px] font-bold text-slate-400 mb-1">Rasio Kehadiran</div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-slate-900">{presenceRate}%</span>
-                <span className="text-[10px] font-bold text-primary bg-primary-lighter/40 px-1.5 py-0.5 rounded">2.8%</span>
-              </div>
+              <div className="text-[11px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Rasio Kehadiran</div>
+              <span className="text-[22px] font-semibold" style={{ color: 'var(--text-title)' }}>{presenceRate}%</span>
             </div>
             <div>
-              <div className="text-[10px] font-bold text-slate-400 mb-1">Total Hadir Hari Ini</div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-slate-900">{presentToday}<span className="text-base text-slate-400 font-bold">/{totalStudents}</span></span>
-                <span className="text-[10px] font-bold text-primary bg-primary-lighter/40 px-1.5 py-0.5 rounded">1.2%</span>
-              </div>
+              <div className="text-[11px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Hadir Hari Ini</div>
+              <span className="text-[22px] font-semibold" style={{ color: 'var(--text-title)' }}>{presentToday}<span className="text-[14px] font-medium" style={{ color: 'var(--text-muted)' }}>/{totalStudents}</span></span>
             </div>
-            <div className="flex-1 flex justify-end gap-6 text-[10px] font-bold">
+            <div className="flex-1 flex justify-end gap-5 text-[11px] font-medium">
               <div className="text-center">
-                <div className="text-slate-400 mb-1 flex items-center gap-1 justify-center"><span className="w-2 h-2 rounded-full bg-primary"></span> Tepat Waktu</div>
-                <div className="text-sm text-slate-900">{tepatWaktuPct}%</div>
+                <div className="flex items-center gap-1.5 justify-center mb-1" style={{ color: 'var(--text-muted)' }}>
+                  <span className="w-2 h-2 rounded-full" style={{ background: 'var(--primary)' }}></span> Tepat Waktu
+                </div>
+                <div className="text-[14px] font-semibold" style={{ color: 'var(--text-title)' }}>{tepatWaktuPct}%</div>
               </div>
               <div className="text-center">
-                <div className="text-slate-400 mb-1 flex items-center gap-1 justify-center"><span className="w-2 h-2 rounded-full bg-orange-400"></span> Sakit/Izin</div>
-                <div className="text-sm text-slate-900">{sakitIzinPct}%</div>
+                <div className="flex items-center gap-1.5 justify-center mb-1" style={{ color: 'var(--text-muted)' }}>
+                  <span className="w-2 h-2 rounded-full bg-amber-400"></span> Sakit/Izin
+                </div>
+                <div className="text-[14px] font-semibold" style={{ color: 'var(--text-title)' }}>{sakitIzinPct}%</div>
               </div>
               <div className="text-center">
-                <div className="text-slate-400 mb-1 flex items-center gap-1 justify-center"><span className="w-2 h-2 rounded-full bg-slate-300"></span> Terlambat</div>
-                <div className="text-sm text-slate-900">{terlambatPct}%</div>
+                <div className="flex items-center gap-1.5 justify-center mb-1" style={{ color: 'var(--text-muted)' }}>
+                  <span className="w-2 h-2 rounded-full" style={{ background: 'var(--hairline-strong)' }}></span> Terlambat
+                </div>
+                <div className="text-[14px] font-semibold" style={{ color: 'var(--text-title)' }}>{terlambatPct}%</div>
               </div>
             </div>
           </div>
 
-          {/* SVG Line Chart */}
-          <div className="w-full h-48 relative">
-            <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible preserve-aspect-ratio-none">
-              {/* Grid Lines */}
+          {/* SVG Chart */}
+          <div className="w-full h-44 relative">
+            <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.15" />
+                  <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
+                </linearGradient>
+              </defs>
               {[0, 25, 50, 75, 100].map(val => (
-                <line key={val} x1="0" y1={val} x2="100" y2={val} stroke="#f1f5f9" strokeWidth="0.5" />
+                <line key={val} x1="0" y1={val} x2="100" y2={val} stroke="var(--border-element)" strokeWidth="0.3" />
               ))}
-              {/* Lines */}
-              <path d={generatePath(chartData)} fill="none" stroke="#758173" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d={generateAreaPath(chartData)} fill="url(#chartGrad)" />
+              <path d={generatePath(chartData)} fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <div className="absolute w-full flex justify-between text-[9px] font-bold text-slate-400 mt-2">
-              <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span className="text-primary">Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span>
+            <div className="absolute w-full flex justify-between text-[10px] font-medium mt-2" style={{ color: 'var(--text-muted)' }}>
+              {['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'].map((m, i) => (
+                <span key={i}>{m}</span>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* WORK ASSIGNMENT TABLE */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <div className="flex justify-between items-center mb-5">
-            <div className="flex gap-2 items-center">
-              <span className="text-sm">🧑‍💻</span>
-              <h3 className="font-bold text-slate-900 text-sm">Log Absensi / Aktivitas</h3>
-            </div>
-            <span className="text-primary text-xs font-bold cursor-pointer">See Detail</span>
+        {/* Activity Log Table */}
+        <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-panel)' }}>
+          <div className="p-5 pb-4">
+            <h3 className="font-semibold text-[14px]" style={{ color: 'var(--text-title)' }}>Log Aktivitas Terbaru</h3>
+            <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-muted)' }}>5 entri terakhir dari sistem absensi</p>
           </div>
-
-          <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
-            <div className="flex gap-2">
-              <select className="bg-white border border-slate-200 text-xs font-bold text-slate-600 rounded-xl px-3 py-1.5 focus:outline-none">
-                <option>7 Hari Terakhir</option>
-              </select>
-              <select className="bg-white border border-slate-200 text-xs font-bold text-slate-600 rounded-xl px-3 py-1.5 focus:outline-none">
-                <option>1 Jan - 7 Jan</option>
-              </select>
-            </div>
-            <div className="flex gap-6 border-b border-slate-200 flex-1 px-4 text-xs font-bold text-slate-400">
-              <span className="pb-2 border-b-2 border-slate-800 text-slate-800 cursor-pointer">Kehadiran</span>
-              <span className="pb-2 cursor-pointer hover:text-slate-600">Sakit / Izin</span>
-              <span className="pb-2 cursor-pointer hover:text-slate-600">Lainnya</span>
-            </div>
-            <div className="flex gap-2">
-              <button className="bg-white border border-slate-200 text-xs font-bold text-slate-600 rounded-xl px-3 py-1.5">⧸ Filter</button>
-              <button className="bg-white border border-slate-200 text-xs font-bold text-slate-600 rounded-xl px-3 py-1.5">↕ Sort By</button>
-            </div>
-          </div>
-
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs whitespace-nowrap">
-              <thead className="text-[10px] text-slate-400 uppercase border-b border-slate-100">
-                <tr>
-                  <th className="py-3 px-2 font-bold w-8"><input type="checkbox" className="rounded" /></th>
-                  <th className="py-3 px-2 font-bold">No Absen</th>
-                  <th className="py-3 px-2 font-bold">Nama Lengkap</th>
-                  <th className="py-3 px-2 font-bold">Kelas</th>
-                  <th className="py-3 px-2 font-bold">Waktu Absen</th>
-                  <th className="py-3 px-2 font-bold">Tanggal</th>
-                  <th className="py-3 px-2 font-bold text-center">Status</th>
+            <table className="w-full text-left text-[13px] whitespace-nowrap">
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-element)' }}>
+                  <th className="py-3 px-5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>No Absen</th>
+                  <th className="py-3 px-5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Nama</th>
+                  <th className="py-3 px-5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Kelas</th>
+                  <th className="py-3 px-5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Waktu</th>
+                  <th className="py-3 px-5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Tanggal</th>
+                  <th className="py-3 px-5 text-[10px] font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-muted)' }}>Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody>
                 {records.length > 0 ? records.slice(0, 5).map((r, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-3 px-2"><input type="checkbox" className="rounded" /></td>
-                    <td className="py-3 px-2 text-slate-500 font-medium">#{r['No Absen'] || '000'}</td>
-                    <td className="py-3 px-2 flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-primary-lighter/50 flex items-center justify-center text-[10px]">👤</div>
-                      <span className="font-bold text-slate-800">{r.Nama}</span>
+                  <tr key={idx} className="transition-colors" style={{ borderBottom: '1px solid var(--border-element)' }}>
+                    <td className="py-3.5 px-5 font-medium" style={{ color: 'var(--text-muted)' }}>#{r['No Absen'] || '—'}</td>
+                    <td className="py-3.5 px-5 font-semibold" style={{ color: 'var(--text-title)' }}>
+                      <div className="flex items-center gap-2.5">
+                        <StudentInitials name={r.Nama} />
+                        <span>{r.Nama}</span>
+                      </div>
                     </td>
-                    <td className="py-3 px-2 text-slate-500 font-medium">{r.Kelas || 'Umum'}</td>
-                    <td className="py-3 px-2 font-bold text-slate-700">{r['Waktu Absen']}</td>
-                    <td className="py-3 px-2 font-medium text-slate-500">{r.Tanggal} {r.Bulan}</td>
-                    <td className="py-3 px-2 text-center">
-                      <span className="text-primary bg-primary-lighter/30 px-2 py-1 rounded text-[10px] font-bold">Hadir</span>
+                    <td className="py-3.5 px-5" style={{ color: 'var(--text-muted)' }}>{r.Kelas || 'Umum'}</td>
+                    <td className="py-3.5 px-5 font-mono font-medium" style={{ color: 'var(--text-title)' }}>{r['Waktu Absen']}</td>
+                    <td className="py-3.5 px-5" style={{ color: 'var(--text-muted)' }}>{r.Tanggal} {r.Bulan}</td>
+                    <td className="py-3.5 px-5 text-center">
+                      <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md" 
+                        style={{ background: 'var(--primary-surface)', color: 'var(--primary)' }}>Hadir</span>
                     </td>
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400 font-medium">Belum ada data absensi terekam.</td>
+                    <td colSpan={6} className="py-10 text-center text-[13px]" style={{ color: 'var(--text-muted)' }}>Belum ada data absensi terekam.</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
         </div>
-
       </div>
 
-      {/* RIGHT COLUMN: Right Sidebar (30%) */}
-      <div className="w-full xl:w-[320px] shrink-0 flex flex-col gap-6">
-        
-        {/* Work Calendar */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex-1">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <span className="text-sm">📅</span>
-              <h3 className="font-bold text-slate-900 text-sm">Kalender Akademik</h3>
-            </div>
-            <button 
-              onClick={handleOpenAddEvent}
-              className="text-primary hover:bg-primary/10 p-1.5 rounded-lg transition-colors font-bold text-xs flex items-center gap-1"
-            >
-              <span>+ Tambah</span>
+      {/* RIGHT SIDEBAR */}
+      <div className="w-full xl:w-[300px] shrink-0 flex flex-col gap-6">
+        {/* Calendar */}
+        <div className="rounded-xl p-5" style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-panel)' }}>
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="font-semibold text-[14px]" style={{ color: 'var(--text-title)' }}>Kalender</h3>
+            <button onClick={handleOpenAddEvent} className="text-[12px] font-medium px-2.5 py-1 rounded-md transition-colors hover:opacity-80"
+              style={{ color: 'var(--primary)', background: 'var(--primary-surface)' }}>
+              + Tambah
             </button>
           </div>
           
-          <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-6 px-2">
+          <div className="flex justify-between text-[11px] font-medium mb-5 px-1" style={{ color: 'var(--text-muted)' }}>
             {weekDates.map((item, idx) => (
-              <div key={idx} className={`text-center ${item.isToday ? 'text-primary' : ''}`}>
-                <div className={`mb-1 ${item.isToday ? 'bg-primary text-white w-5 h-5 rounded-full flex items-center justify-center mx-auto shadow-sm shadow-primary/30 font-bold' : ''}`}>{item.dateNum}</div>
-                <div>{item.dayLabel}</div>
+              <div key={idx} className={`text-center ${item.isToday ? '' : ''}`}>
+                <div className={`mb-1.5 w-7 h-7 flex items-center justify-center mx-auto rounded-lg font-semibold text-[12px] ${
+                  item.isToday ? 'text-white' : ''
+                }`} style={item.isToday ? { background: 'var(--primary)' } : { color: 'var(--text-title)' }}>
+                  {item.dateNum}
+                </div>
+                <div style={{ color: item.isToday ? 'var(--primary)' : 'var(--text-muted)' }}>{item.dayLabel}</div>
               </div>
             ))}
           </div>
 
-          <div className="space-y-4 border-t border-slate-100 pt-4">
+          <div className="space-y-3 pt-4" style={{ borderTop: '1px solid var(--border-element)' }}>
             {agendaData.academic_calendar.events.map((event: any) => (
-              <div key={event.id} className="flex items-center justify-between group py-2 border-b border-slate-50 last:border-0">
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-xs text-primary shrink-0">{event.icon}</div>
+              <div key={event.id} className="flex items-center justify-between group py-1.5">
+                <div className="flex gap-2.5 items-center">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ background: 'var(--primary-surface)' }}>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" style={{ color: 'var(--primary)' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                    </svg>
+                  </div>
                   <div>
-                    <h4 className="font-bold text-slate-900 text-xs">{event.title}</h4>
-                    <p className="text-[10px] text-slate-500 font-medium">{event.type} &nbsp;&nbsp; {event.time}</p>
+                    <h4 className="font-medium text-[12px]" style={{ color: 'var(--text-title)' }}>{event.title}</h4>
+                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{event.type} — {event.time}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button 
-                    onClick={(e) => handleOpenEditEvent(event, e)}
-                    className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors"
-                    title="Edit"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={(e) => handleOpenEditEvent(event, e)} className="p-1.5 rounded-md hover:bg-slate-100 transition-colors" style={{ color: 'var(--text-muted)' }}>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                     </svg>
                   </button>
-                  <button 
-                    onClick={(e) => handleDeleteEvent(event.id, e)}
-                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Hapus"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  <button onClick={(e) => handleDeleteEvent(event.id, e)} className="p-1.5 rounded-md hover:bg-red-50 transition-colors text-red-400 hover:text-red-500">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                     </svg>
                   </button>
                 </div>
@@ -567,82 +541,42 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
-
       </div>
 
-      {/* Event Add/Edit Modal */}
+      {/* Event Modal */}
       {isEventModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-fade-in border border-slate-100">
-            <h3 className="text-base font-bold text-slate-900 mb-4">
-              {editingEvent ? 'Edit Agenda Akademik' : 'Tambah Agenda Akademik'}
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-xl p-6 space-y-4 animate-scale-in"
+            style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-panel)', boxShadow: 'var(--shadow-lg)' }}>
+            <h3 className="text-[15px] font-semibold" style={{ color: 'var(--text-title)' }}>
+              {editingEvent ? 'Edit Agenda' : 'Tambah Agenda'}
             </h3>
-            <form onSubmit={handleSaveEvent} className="space-y-4">
+            <form onSubmit={handleSaveEvent} className="space-y-3.5">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Judul Agenda</label>
-                <input 
-                  type="text" 
-                  value={eventForm.title} 
-                  onChange={(e) => setEventForm(prev => ({ ...prev, title: e.target.value }))}
-                  required
-                  placeholder="Contoh: Pembagian Rapor"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-700 focus:outline-none focus:border-primary transition-all font-medium"
-                />
+                <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Judul</label>
+                <input type="text" value={eventForm.title} onChange={(e) => setEventForm(prev => ({ ...prev, title: e.target.value }))}
+                  required placeholder="Contoh: Pembagian Rapor" className="w-full px-3.5 py-2.5 text-[13px] rounded-lg" />
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tipe Lokasi</label>
-                  <input 
-                    type="text" 
-                    value={eventForm.type} 
-                    onChange={(e) => setEventForm(prev => ({ ...prev, type: e.target.value }))}
-                    placeholder="Contoh: Ruang Kelas, Online"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-700 focus:outline-none focus:border-primary transition-all font-medium"
-                  />
+                  <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Lokasi</label>
+                  <input type="text" value={eventForm.type} onChange={(e) => setEventForm(prev => ({ ...prev, type: e.target.value }))}
+                    placeholder="Ruang Kelas" className="w-full px-3.5 py-2.5 text-[13px] rounded-lg" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Waktu</label>
-                  <input 
-                    type="text" 
-                    value={eventForm.time} 
-                    onChange={(e) => setEventForm(prev => ({ ...prev, time: e.target.value }))}
-                    placeholder="Contoh: 08:30 AM"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-700 focus:outline-none focus:border-primary transition-all font-medium"
-                  />
+                  <label className="block text-[11px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Waktu</label>
+                  <input type="text" value={eventForm.time} onChange={(e) => setEventForm(prev => ({ ...prev, time: e.target.value }))}
+                    placeholder="08:30" className="w-full px-3.5 py-2.5 text-[13px] rounded-lg" />
                 </div>
               </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Icon Emoji</label>
-                <select 
-                  value={eventForm.icon} 
-                  onChange={(e) => setEventForm(prev => ({ ...prev, icon: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-700 focus:outline-none focus:border-primary cursor-pointer font-medium"
-                >
-                  <option value="📅">📅 Kalender</option>
-                  <option value="🏫">🏫 Sekolah</option>
-                  <option value="👨‍🏫">👨‍🏫 Guru</option>
-                  <option value="🏢">🏢 Gedung/Kelas</option>
-                  <option value="📊">📊 Rapat/Evaluasi</option>
-                  <option value="📝">📝 Ujian/Penilaian</option>
-                  <option value="🎉">🎉 Event/Perayaan</option>
-                  <option value="🏆">🏆 Lomba/Prestasi</option>
-                </select>
-              </div>
-
-              <div className="flex gap-2 justify-end pt-4">
-                <button 
-                  type="button" 
-                  onClick={() => setIsEventModalOpen(false)}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl transition-all"
-                >
+              <div className="flex gap-2 justify-end pt-3">
+                <button type="button" onClick={() => setIsEventModalOpen(false)}
+                  className="text-[13px] font-medium px-4 py-2 rounded-lg transition-all"
+                  style={{ background: 'var(--bg-element)', color: 'var(--text-body)' }}>
                   Batal
                 </button>
-                <button 
-                  type="submit" 
-                  className="bg-primary hover:bg-primary-light text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-primary/20"
-                >
+                <button type="submit" className="text-white text-[13px] font-medium px-4 py-2 rounded-lg transition-all"
+                  style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}>
                   Simpan
                 </button>
               </div>
@@ -650,7 +584,6 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
