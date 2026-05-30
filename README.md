@@ -1,29 +1,38 @@
-# Face Recognition Attendance System 🎓🔍
+# Sessiof 🎓🔍
 
-Sistem Absensi Sekolah/Kantor berbasis deteksi wajah secara *real-time* menggunakan kamera (Webcam) laptop. Sistem ini mendeteksi wajah menggunakan algoritma **Haar Cascades** dan mengenali identitas wajah siswa menggunakan model **LBPH (Local Binary Patterns Histograms)** dari OpenCV. 
+Sistem Absensi Sekolah berbasis deteksi wajah secara *real-time* menggunakan kamera (Webcam) laptop. Sistem ini mendeteksi wajah menggunakan algoritma **Haar Cascades** dan mengenali identitas wajah siswa secara akurat menggunakan model **LBPH (Local Binary Patterns Histograms)** dari OpenCV. 
 
-Setiap kali siswa berhasil teridentifikasi oleh kamera, data kehadiran akan otomatis tercatat ke **Excel lokal (`.xlsx`)** dan terintegrasi langsung dengan **Google Sheets (Online)** secara real-time.
+Setiap kali siswa berhasil teridentifikasi oleh kamera, data kehadiran akan otomatis tercatat ke **Excel lokal (`attendance.xlsx`)** dan terintegrasi langsung dengan **Google Sheets (Online)** serta **Dashboard Web Next.js** secara real-time.
 
 ---
 
 ## 🌟 Fitur Utama
+
 1. **Registrasi Wajah Baru:** Mengambil 30 foto sampel wajah siswa dari berbagai ekspresi dan sudut secara otomatis.
-2. **Pelatihan Otomatis (Machine Learning Training):** Melatih model pengenal wajah secara cepat menggunakan metode LBPH dan menyimpan file otak model dalam bentuk file `.yml`.
-3. **Deteksi & Absensi Real-Time:** Mengenali wajah siswa di kamera, mendeteksi jika siswa sudah absen hari ini agar tidak ada data ganda (*anti-duplicate*).
-4. **Output Excel Lokal:** Mencatat absensi lengkap dengan kolom: `Nama`, `Hari`, `Tanggal`, `Bulan`, `Tahun`, `Waktu Absen`.
-5. **Sinkronisasi Cloud Google Sheets:** Mengirimkan data absen ke Google Sheets menggunakan integrasi Webhook (Google Apps Script).
+2. **Pelatihan Otomatis (Machine Learning Training):** Melatih model pengenal wajah secara cepat menggunakan metode LBPH dan menyimpan file model dalam format `.yml`.
+3. **Deteksi & Absensi Real-Time:** Mengenali wajah siswa di kamera dan mendeteksi jika siswa sudah absen hari ini (*anti-duplicate log*).
+4. **Dashboard Portal Admin Web (Next.js):**
+   * **Dashboard Statistik:** Menampilkan total siswa, jumlah hadir hari ini, rasio persentase kehadiran, rasio siswa tepat waktu/terlambat/sakit/izin dengan diagram garis interaktif.
+   * **Daftar Kehadiran:** Menampilkan status kehadiran siswa (Hadir, Izin, Sakit, Alpa). Status **Alpa** akan digenerasikan otomatis secara dinamis setiap hari untuk siswa yang belum absen.
+   * **CRUD Kalender Akademik:** Mengelola agenda, rapat evaluasi, dan kalender kegiatan sekolah langsung lewat halaman web.
+   * **Export Fitur:** Download rekap log absensi harian atau bulanan dalam format CSV dan Spreadsheet (.xlsx) secara instan.
+   * **Batas Waktu Hadir/Pulang:** Mengatur ambang batas jam kedatangan untuk menetapkan keterlambatan siswa.
+5. **Output Excel Lokal:** Mencatat absensi lengkap dengan kolom: `Nama`, `Hari`, `Tanggal`, `Bulan`, `Tahun`, `Waktu Absen`.
+6. **Sinkronisasi Cloud Google Sheets:** Mengirimkan data absen ke Google Sheets menggunakan integrasi Webhook (Google Apps Script).
 
 ---
 
-## 📂 Struktur Folder
+## 📂 Struktur Proyek
+
 ```text
-├── dataset/                  # Folder foto wajah siswa hasil registrasi
-├── trainer.yml               # File model wajah hasil training (LBPH)
-├── names.npy                 # Database nama siswa terdaftar
-├── attendance.xlsx           # Rekap absensi lokal (Excel)
-├── face_attendance.py        # Kode utama program Python
+├── dataset/                  # Folder foto wajah siswa hasil registrasi (Di-ignore)
+├── trainer.yml               # File model wajah hasil training (LBPH) (Di-ignore)
+├── names.npy                 # Database nama siswa terdaftar (Di-ignore)
+├── attendance.xlsx           # Rekap absensi lokal (Excel) (Di-ignore)
+├── face_attendance.py        # Kode utama program Python untuk kamera absensi
 ├── dashboard.py              # Dashboard alternatif menggunakan Streamlit (Python)
-├── dashboard-web/            # Dashboard utama menggunakan Next.js (React/Tailwind)
+├── server.py                 # Flask Server penghubung Python dengan Portal Admin
+├── dashboard-web/            # Dashboard portal admin utama menggunakan Next.js (React)
 └── README.md                 # Dokumentasi proyek
 ```
 
@@ -33,27 +42,22 @@ Setiap kali siswa berhasil teridentifikasi oleh kamera, data kehadiran akan otom
 
 ### 1. Kloning Repositori
 ```bash
-git clone https://github.com/USERNAME-ANDA/NAMA-REPOSITORI.git
-cd NAMA-REPOSITORI
+git clone https://github.com/davinmaritza/sessiof.git
+cd sessiof
 ```
 
 ### 2. Jalankan Lingkungan Virtual & Instal Dependensi Python
 ```bash
-# Aktifkan virtual environment (jika ada)
-source .venv/Scripts/activate # Di Git Bash/Linux
+# Aktifkan virtual environment
+.venv\Scripts\activate # Di CMD/PowerShell Windows
 # atau
-.venv\Scripts\activate # Di CMD/PowerShell
+source .venv/Scripts/activate # Di Git Bash/Linux/macOS
 
-# Instal pustaka yang dibutuhkan
-pip install opencv-contrib-python pandas openpyxl requests numpy streamlit
+# Instal pustaka Python yang dibutuhkan
+pip install opencv-contrib-python pandas openpyxl requests numpy streamlit flask flask-cors
 ```
 
-### 3. Jalankan Program Python (Absensi Wajah)
-```bash
-python face_attendance.py
-```
-
-### 4. Jalankan Web Dashboard Next.js
+### 3. Jalankan Web Dashboard Next.js (Portal Admin)
 Buka terminal baru di folder `dashboard-web` lalu jalankan:
 ```bash
 cd dashboard-web
@@ -62,12 +66,17 @@ npm run dev
 ```
 Akses dashboard di browser Anda pada alamat **http://localhost:3000** (Data absensi tersinkronisasi secara real-time dari file Excel di atasnya!).
 
-### 5. Jalankan Web Dashboard Streamlit (Alternatif)
-Jika ingin menggunakan dashboard berbasis Python/Streamlit:
+### 4. Jalankan Server Flask & Kamera Absensi
+Aplikasi dashboard akan terhubung ke Server Python untuk mengaktifkan kamera. Jalankan Flask Server di folder root proyek:
 ```bash
-streamlit run dashboard.py
+python server.py
 ```
-Akses di browser Anda pada alamat **http://localhost:8501**.
+
+### 5. Jalankan Kamera Absensi Manual (Terminal Python)
+Jika ingin menjalankan program kamera absensi mandiri tanpa web browser:
+```bash
+python face_attendance.py
+```
 
 ---
 
@@ -78,7 +87,7 @@ Untuk menghubungkan absensi kamera langsung ke Google Sheets Anda secara online,
 1. Buat spreadsheet baru di **Google Sheets**.
 2. Berikan judul kolom di baris pertama: **A1:** `Nama`, **B1:** `Hari`, **C1:** `Tanggal`, **D1:** `Bulan`, **E1:** `Tahun`, **F1:** `Waktu`.
 3. Klik menu **Ekstensi** > **Apps Script**.
-4. Hapus semua kode bawaan, lalu paste kode JavaScript di bawah ini:
+4. Hapus semua kode bawaan, lalu tempel kode JavaScript di bawah ini:
 
 ```javascript
 function doPost(e) {
@@ -117,8 +126,10 @@ function doPost(e) {
 ---
 
 ## 🛠️ Teknologi yang Digunakan
+* **Next.js 16** (React 19, Tailwind CSS, TypeScript)
 * **Python 3.12+**
 * **OpenCV** (Deteksi wajah dengan Haar Cascade & Pengenalan wajah dengan LBPH Recognizer)
+* **Flask** (Backend API untuk integrasi kontrol kamera dengan Web Dashboard)
 * **Pandas & Openpyxl** (Manajemen database Excel lokal)
 * **Requests** (Komunikasi HTTP Webhook ke Cloud Google Sheets)
 * **Google Apps Script** (Sebagai backend API Google Sheets)
