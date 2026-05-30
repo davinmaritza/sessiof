@@ -627,9 +627,28 @@ def upload_face():
     h, w = img.shape[:2]
     detector.setInputSize((w, h))
     retval, faces = detector.detect(img)
+    pose = request.form.get("pose", "center").strip().lower()
     
     if faces is None or len(faces) == 0:
         return jsonify({"error": "Wajah tidak terdeteksi dalam foto! Pastikan wajah terlihat jelas."}), 400
+        
+    # Validasi Pose Wajah (Tengah, Kiri, Kanan) menggunakan landmarks YuNet
+    face = faces[0]
+    rex, ley, nex = face[4], face[6], face[8]
+    eye_width = abs(ley - rex)
+    if eye_width > 0:
+        ratio = (nex - min(rex, ley)) / eye_width
+        print(f"DEBUG Pose Check: expected={pose}, ratio={ratio:.3f}, rex={rex}, ley={ley}, nex={nex}")
+        
+        if pose == "left":
+            if ratio >= 0.40:
+                return jsonify({"error": "Sensor mendeteksi wajah Anda tidak menghadap ke KIRI. Silakan menoleh ke KIRI."}), 400
+        elif pose == "right":
+            if ratio <= 0.60:
+                return jsonify({"error": "Sensor mendeteksi wajah Anda tidak menghadap ke KANAN. Silakan menoleh ke KANAN."}), 400
+        elif pose == "center":
+            if ratio < 0.38 or ratio > 0.62:
+                return jsonify({"error": "Sensor mendeteksi wajah Anda miring/menoleh. Silakan hadap lurus ke DEPAN."}), 400
         
     # Validasi duplikasi wajah dengan database
     load_templates()

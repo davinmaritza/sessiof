@@ -163,6 +163,9 @@ export default function EnrollPage() {
         formData.append('name', name.trim());
         formData.append('image', uploadFiles[i]);
         
+        const poseName = i === 0 ? 'center' : i === 1 ? 'left' : 'right';
+        formData.append('pose', poseName);
+        
         const resPhoto = await fetch('http://localhost:5000/api/upload-face', { method: 'POST', body: formData });
         const dataPhoto = await resPhoto.json();
         if (!resPhoto.ok) {
@@ -193,6 +196,12 @@ export default function EnrollPage() {
   return (
     <main className="min-h-screen flex items-center justify-center p-5 antialiased relative overflow-hidden"
       style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1625 40%, #0f0f1a 100%)' }}>
+      
+      {/* Full-screen Active Color Flash Overlay */}
+      {flashColor && (
+        <div className="fixed inset-0 z-[9999] pointer-events-none transition-all duration-100"
+          style={{ backgroundColor: flashColor }} />
+      )}
       
       <div className="absolute top-[-25%] right-[-15%] w-[600px] h-[600px] rounded-full pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(91,77,199,0.1) 0%, transparent 70%)' }} />
@@ -256,12 +265,6 @@ export default function EnrollPage() {
             {/* Camera / Challenge Preview */}
             <div className="flex flex-col items-center justify-center rounded-xl p-5 relative min-h-[220px] overflow-hidden"
               style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              
-              {/* Active Color Flash Overlay */}
-              {flashColor && (
-                <div className="absolute inset-0 z-30 pointer-events-none transition-all duration-100"
-                  style={{ backgroundColor: flashColor }} />
-              )}
               
               {useCamera ? (
                 <div className="w-full flex flex-col items-center gap-3 relative z-10">
