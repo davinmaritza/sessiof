@@ -277,18 +277,8 @@ export default function PortalLayout({
 
           {/* Quick Action */}
           <div className="space-y-4 mt-6">
-            <button 
-              onClick={async () => {
-                try {
-                  const res = await fetch('http://localhost:5000/api/start', { method: 'POST' });
-                  const data = await res.json();
-                  setToast({ show: true, message: data.message || data.error, type: res.ok ? 'success' : 'error' });
-                  setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
-                } catch (e) {
-                  setToast({ show: true, message: 'Server Python tidak aktif.', type: 'error' });
-                  setTimeout(() => setToast(prev => ({ ...prev, show: false })), 4000);
-                }
-              }}
+            <Link 
+              href="/scan"
               className="w-full text-white text-[13px] font-semibold py-2.5 rounded-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
               style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}
             >
@@ -296,8 +286,8 @@ export default function PortalLayout({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
               </svg>
-              <span>Mulai Kamera</span>
-            </button>
+              <span>Mulai Absensi</span>
+            </Link>
 
             {/* Profile Footer */}
             <div className="flex items-center justify-between px-2 py-2 rounded-lg" style={{ background: 'var(--bg-element)', border: '1px solid var(--border-element)' }}>
