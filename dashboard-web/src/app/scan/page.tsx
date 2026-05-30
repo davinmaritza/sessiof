@@ -381,14 +381,14 @@ export default function ScanAttendancePage() {
                       </div>
                     )}
                     {challengeStep === 2 && (
-                      <div className="flex flex-col items-center justify-center bg-black/55 px-4 py-2.5 rounded-xl border border-primary/20 backdrop-blur-md animate-bounce-left">
-                        <span className="text-primary-light text-3xl font-black">←</span>
+                      <div className="flex flex-col items-center justify-center bg-black/55 px-4 py-2.5 rounded-xl border border-primary/20 backdrop-blur-md animate-bounce-right">
+                        <span className="text-primary-light text-3xl font-black">→</span>
                         <span className="text-[10px] font-black text-white uppercase tracking-widest mt-1">Menoleh Kiri</span>
                       </div>
                     )}
                     {challengeStep === 3 && (
-                      <div className="flex flex-col items-center justify-center bg-black/55 px-4 py-2.5 rounded-xl border border-primary/20 backdrop-blur-md animate-bounce-right">
-                        <span className="text-primary-light text-3xl font-black">→</span>
+                      <div className="flex flex-col items-center justify-center bg-black/55 px-4 py-2.5 rounded-xl border border-primary/20 backdrop-blur-md animate-bounce-left">
+                        <span className="text-primary-light text-3xl font-black">←</span>
                         <span className="text-[10px] font-black text-white uppercase tracking-widest mt-1">Menoleh Kanan</span>
                       </div>
                     )}
