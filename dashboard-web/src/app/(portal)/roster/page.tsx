@@ -407,9 +407,15 @@ export default function RosterPage() {
                     setEditUsername(student.username || '');
                     setEditPassword(student.password || '');
                   }}
-                  className={`flex items-center justify-between p-4 hover:bg-slate-50 transition-all cursor-pointer ${
-                    selectedStudent?.name === student.name ? 'bg-slate-50/80 border-l-4 border-black' : ''
-                  }`}
+                  className="flex items-center justify-between p-4 hover:bg-primary/[0.04] transition-all cursor-pointer border-l-4"
+                  style={{
+                    backgroundColor: selectedStudent?.name === student.name 
+                      ? 'var(--primary-surface)' 
+                      : 'transparent',
+                    borderColor: selectedStudent?.name === student.name 
+                      ? 'var(--primary)' 
+                      : 'transparent',
+                  }}
                 >
                   <div className="flex items-center gap-3.5">
                     <div className="h-9 w-9 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0"
