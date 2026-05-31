@@ -3,6 +3,17 @@
 import { useState, useEffect, useRef } from 'react';
 import AttendanceHeatmap from '@/components/AttendanceHeatmap';
 import ConfirmModal from '@/components/ConfirmModal';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
 
 interface Student {
   name: string;
@@ -63,6 +74,7 @@ export default function DashboardPage() {
   const [userClass, setUserClass] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   const getCurrentWeekDates = () => {
     const today = new Date();
@@ -192,6 +204,7 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
+    setIsMounted(true);
     const role = localStorage.getItem('sessiof_user_role') || 'admin';
     const name = localStorage.getItem('sessiof_user_name') || 'Administrator';
     const ucls = localStorage.getItem('sessiof_user_class') || '';
@@ -320,6 +333,19 @@ export default function DashboardPage() {
     });
     return `M 0 100 L ${points.map((p, i) => `${i === 0 ? '' : 'L '}${p}`).join(' ')} L 100 100 Z`;
   };
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const monthlyTrendData = chartData.map((val, idx) => ({
+    name: monthNames[idx],
+    Kehadiran: val
+  }));
+
+  const pieData = [
+    { name: 'Tepat Waktu', value: tepatWaktu, color: '#10b981' },
+    { name: 'Terlambat', value: terlambat, color: '#f59e0b' },
+    { name: 'Sakit/Izin', value: sakitIzin, color: '#3b82f6' },
+    { name: 'Belum Hadir / Alpa', value: absentStudents, color: '#ef4444' }
+  ].filter(item => item.value > 0);
 
   const StudentInitials = ({ name }: { name: string }) => {
     const initials = name.trim().split(/\s+/).map(n => n[0]).slice(0, 2).join('').toUpperCase();
@@ -463,64 +489,98 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Chart */}
-        <div className="rounded-xl p-6 animate-slide-up stagger-4" style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-panel)' }}>
-          <div className="flex justify-between items-start mb-5">
-            <div>
-              <h3 className="font-semibold text-[14px]" style={{ color: 'var(--text-title)' }}>Ringkasan Absensi</h3>
-              <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Tren kehadiran bulanan tahun ini</p>
-            </div>
-          </div>
-          
-          <div className="flex flex-wrap items-end gap-6 mb-6 pb-4" style={{ borderBottom: '1px solid var(--border-element)' }}>
-            <div>
-              <div className="text-[11px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Rasio Kehadiran</div>
-              <span className="text-[22px] font-semibold" style={{ color: 'var(--text-title)' }}>{presenceRate}%</span>
-            </div>
-            <div>
-              <div className="text-[11px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Hadir Hari Ini</div>
-              <span className="text-[22px] font-semibold" style={{ color: 'var(--text-title)' }}>{presentToday}<span className="text-[14px] font-medium" style={{ color: 'var(--text-muted)' }}>/{totalStudents}</span></span>
-            </div>
-            <div className="flex-1 flex justify-end gap-5 text-[11px] font-medium">
-              <div className="text-center">
-                <div className="flex items-center gap-1.5 justify-center mb-1" style={{ color: 'var(--text-muted)' }}>
-                  <span className="w-2 h-2 rounded-full" style={{ background: 'var(--primary)' }}></span> Tepat Waktu
-                </div>
-                <div className="text-[14px] font-semibold" style={{ color: 'var(--text-title)' }}>{tepatWaktuPct}%</div>
+        {/* Charts Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-slide-up stagger-4">
+          {/* Monthly Trend Area Chart */}
+          <div className="lg:col-span-2 rounded-xl p-6" style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-panel)' }}>
+            <div className="flex justify-between items-start mb-5">
+              <div>
+                <h3 className="font-bold text-[14px]" style={{ color: 'var(--text-title)' }}>Tren Kehadiran Bulanan</h3>
+                <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Jumlah rekaman absensi siswa tahun ini</p>
               </div>
-              <div className="text-center">
-                <div className="flex items-center gap-1.5 justify-center mb-1" style={{ color: 'var(--text-muted)' }}>
-                  <span className="w-2 h-2 rounded-full bg-amber-400"></span> Sakit/Izin
-                </div>
-                <div className="text-[14px] font-semibold" style={{ color: 'var(--text-title)' }}>{sakitIzinPct}%</div>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center gap-1.5 justify-center mb-1" style={{ color: 'var(--text-muted)' }}>
-                  <span className="w-2 h-2 rounded-full" style={{ background: 'var(--hairline-strong)' }}></span> Terlambat
-                </div>
-                <div className="text-[14px] font-semibold" style={{ color: 'var(--text-title)' }}>{terlambatPct}%</div>
-              </div>
+            </div>
+            
+            <div className="w-full h-52">
+              {isMounted ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={monthlyTrendData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} tickLine={false} />
+                    <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} />
+                    <Tooltip 
+                      contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border-element)', borderRadius: '12px' }} 
+                      labelStyle={{ color: 'var(--text-title)', fontWeight: 'bold', fontSize: '11px' }}
+                      itemStyle={{ color: 'var(--primary)', fontSize: '11px' }}
+                    />
+                    <Area type="monotone" dataKey="Kehadiran" stroke="var(--primary)" strokeWidth={2} fillOpacity={1} fill="url(#chartGrad)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">Memuat grafik...</div>
+              )}
             </div>
           </div>
 
-          {/* SVG Chart */}
-          <div className="w-full h-44 relative">
-            <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.15" />
-                  <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              {[0, 25, 50, 75, 100].map(val => (
-                <line key={val} x1="0" y1={val} x2="100" y2={val} stroke="var(--border-element)" strokeWidth="0.3" />
-              ))}
-              <path d={generateAreaPath(chartData)} fill="url(#chartGrad)" />
-              <path d={generatePath(chartData)} fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <div className="absolute w-full flex justify-between text-[10px] font-medium mt-2" style={{ color: 'var(--text-muted)' }}>
-              {['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'].map((m, i) => (
-                <span key={i}>{m}</span>
+          {/* Today's Distribution Pie Chart */}
+          <div className="rounded-xl p-6 flex flex-col justify-between" style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-panel)' }}>
+            <div>
+              <h3 className="font-bold text-[14px]" style={{ color: 'var(--text-title)' }}>Kehadiran Hari Ini</h3>
+              <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Rasio: {presenceRate}% ({presentToday}/{totalStudents} Siswa)</p>
+            </div>
+            
+            <div className="w-full h-44 relative flex items-center justify-center my-3">
+              {isMounted ? (
+                pieData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={70}
+                        paddingAngle={4}
+                        dataKey="value"
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border-element)', borderRadius: '12px', fontSize: '11px' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-[11px] text-slate-400 text-center font-medium">Belum ada data kehadiran terekam hari ini.</div>
+                )
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">Memuat grafik...</div>
+              )}
+              {isMounted && pieData.length > 0 && (
+                <div className="absolute flex flex-col items-center">
+                  <span className="text-xl font-black text-slate-800 dark:text-white">{presentToday}</span>
+                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Hadir</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[10px] font-bold mt-2">
+              {[
+                { name: 'Hadir', color: 'bg-emerald-500' },
+                { name: 'Terlambat', color: 'bg-orange-500' },
+                { name: 'Sakit/Izin', color: 'bg-blue-500' },
+                { name: 'Alpa', color: 'bg-red-500' }
+              ].map(item => (
+                <div key={item.name} className="flex items-center gap-1">
+                  <span className={`w-2 h-2 rounded-full ${item.color}`}></span>
+                  <span style={{ color: 'var(--text-muted)' }}>{item.name}</span>
+                </div>
               ))}
             </div>
           </div>

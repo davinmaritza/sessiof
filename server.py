@@ -587,6 +587,37 @@ def log_attendance(name):
                     print(f"Failed to send webhook: {e}")
             threading.Thread(target=send_webhook_bg, args=(webhook_url, webhook_payload), daemon=True).start()
         settings = load_settings()
+        if is_late:
+            message_body = f"Yth. Orang tua dari {name}, menginfokan bahwa siswa telah masuk sekolah pada pukul {waktu} (Terlambat)."
+        else:
+            message_body = f"Yth. Orang tua dari {name}, menginfokan bahwa siswa telah hadir di sekolah dengan tepat waktu pada pukul {waktu}."
+
+        # Telegram Bot integration
+        if settings.get("telegramEnabled", False) and settings.get("telegramBotToken") and settings.get("telegramChatId"):
+            bot_token = settings.get("telegramBotToken").strip()
+            chat_id = settings.get("telegramChatId").strip()
+            status_text = "⏱️ Terlambat" if is_late else "✅ Tepat Waktu"
+            tg_message = f"📢 *Notifikasi Kehadiran Siswa*\n\n" \
+                         f"👤 *Nama*: {name}\n" \
+                         f"🏫 *Kelas*: {kelas}\n" \
+                         f"🔢 *No Absen*: {no_absen}\n" \
+                         f"🕒 *Waktu*: {waktu}\n" \
+                         f"📅 *Tanggal*: {tanggal} {bulan} {tahun}\n" \
+                         f"📌 *Status*: {status_text}\n\n" \
+                         f"Pesan: {message_body}"
+            
+            def send_tg_bg(token, cid, msg):
+                try:
+                    requests.post(
+                        f"https://api.telegram.org/bot{token}/sendMessage",
+                        json={"chat_id": cid, "text": msg, "parse_mode": "Markdown"},
+                        timeout=10
+                    )
+                except Exception as tg_err:
+                    print(f"Gagal mengirim notifikasi Telegram: {tg_err}")
+            threading.Thread(target=send_tg_bg, args=(bot_token, chat_id, tg_message), daemon=True).start()
+
+        # WhatsApp logging & sending integration
         if settings.get("whatsappNotificationsEnabled", True):
             logs_file = "whatsapp_logs.json"
             whatsapp_logs = []
@@ -597,11 +628,6 @@ def log_attendance(name):
                 except Exception:
                     pass
             
-            if is_late:
-                message_body = f"Yth. Orang tua dari {name}, menginfokan bahwa siswa telah masuk sekolah pada pukul {waktu} (Terlambat)."
-            else:
-                message_body = f"Yth. Orang tua dari {name}, menginfokan bahwa siswa telah hadir di sekolah dengan tepat waktu pada pukul {waktu}."
-                
             new_log = {
                 "id": len(whatsapp_logs) + 1,
                 "recipient": f"Orang Tua {name}",
@@ -615,6 +641,32 @@ def log_attendance(name):
                     json.dump(whatsapp_logs, f, indent=4)
             except Exception as e:
                 print(f"Gagal menulis log WhatsApp: {e}")
+                
+            # Send real WhatsApp message if configured
+            api_url = settings.get("whatsappApiUrl", "").strip()
+            api_key = settings.get("whatsappApiKey", "").strip()
+            if api_url and api_key:
+                metadata = load_metadata()
+                student_info = metadata.get(name, {})
+                parent_phone = student_info.get("parent_phone", "").strip()
+                if not parent_phone:
+                    parent_phone = settings.get("whatsappDefaultRecipient", "").strip()
+                
+                if parent_phone:
+                    headers = {"Authorization": api_key}
+                    payload = {
+                        "target": parent_phone,
+                        "message": message_body
+                    }
+                    def send_wa_bg(url, headers_dict, body_data):
+                        try:
+                            if "fonnte" in url.lower():
+                                requests.post(url, headers=headers_dict, data=body_data, timeout=10)
+                            else:
+                                requests.post(url, headers={**headers_dict, "Content-Type": "application/json"}, json=body_data, timeout=10)
+                        except Exception as wa_err:
+                            print(f"Gagal mengirim notifikasi WhatsApp: {wa_err}")
+                    threading.Thread(target=send_wa_bg, args=(api_url, headers, payload), daemon=True).start()
             
     latest_scan = {
         "name": name,
@@ -834,7 +886,8 @@ def get_status():
                         "absent_no": info.get("absent_no", absent_no),
                         "photo_count": len(photos),
                         "username": info.get("username", f"{student_name.lower().replace(' ', '')}"),
-                        "password": info.get("password", "12345")
+                        "password": info.get("password", "12345"),
+                        "parent_phone": info.get("parent_phone", "")
                     })
             
     return jsonify({
@@ -851,6 +904,7 @@ def add_student():
     name = data.get("name", "").strip()
     class_name = data.get("class_name", "").strip()
     absent_no = data.get("absent_no", "").strip()
+    parent_phone = data.get("parent_phone", "").strip()
     
     if not name or not class_name or not absent_no:
         return jsonify({"error": "Data nama, kelas, dan nomor absen harus lengkap!"}), 400
@@ -869,7 +923,8 @@ def add_student():
         "class_name": class_name,
         "absent_no": absent_no,
         "username": default_user,
-        "password": "12345"
+        "password": "12345",
+        "parent_phone": parent_phone
     }
     save_metadata(metadata)
     log_audit("Tambah Siswa", "Admin/Guru", f"Nama: {name}, Kelas: {class_name}, No Absen: {absent_no}")
@@ -933,6 +988,7 @@ def edit_student(name):
     new_name = data.get("new_name", "").strip()
     class_name = data.get("class_name", "").strip()
     absent_no = data.get("absent_no", "").strip()
+    parent_phone = data.get("parent_phone", "").strip()
     
     if not new_name or not class_name or not absent_no:
         return jsonify({"error": "Data nama, kelas, dan nomor absen tidak boleh kosong!"}), 400
@@ -970,7 +1026,8 @@ def edit_student(name):
         "class_name": class_name,
         "absent_no": absent_no,
         "username": username,
-        "password": password
+        "password": password,
+        "parent_phone": parent_phone
     }
     save_metadata(metadata)
     log_audit("Edit Siswa", "Admin/Guru", f"Mengedit data siswa '{name}' menjadi '{new_name}' (Kelas: {class_name})")

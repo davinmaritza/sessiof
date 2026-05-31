@@ -1,0 +1,22 @@
+[
+    {
+        "id": 1780200569,
+        "student_name": "Davin Maritza Alfarrezal",
+        "class_name": "X RPL 1",
+        "status": "Sakit",
+        "reason": "demam ygy",
+        "date_submitted": "31 May 2026 11:09",
+        "is_approved": "Rejected",
+        "document_name": "surat_keterangan.pdf"
+    },
+    {
+        "id": 1780200521,
+        "student_name": "Davin Maritza Alfarrezal",
+        "class_name": "X RPL 1",
+        "status": "Izin",
+        "reason": "sakit owe",
+        "date_submitted": "31 May 2026 11:08",
+        "is_approved": "Approved",
+        "document_name": "surat_keterangan.pdf"
+    }
+]

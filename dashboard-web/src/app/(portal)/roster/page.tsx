@@ -10,6 +10,7 @@ interface Student {
   photo_count: number;
   username?: string;
   password?: string;
+  parent_phone?: string;
 }
 
 interface ServerStatus {
@@ -34,6 +35,9 @@ export default function RosterPage() {
   const [editAbsentNo, setEditAbsentNo] = useState('');
   const [editUsername, setEditUsername] = useState('');
   const [editPassword, setEditPassword] = useState('');
+  const [editParentPhone, setEditParentPhone] = useState('');
+  
+  const [newStudentParentPhone, setNewStudentParentPhone] = useState('');
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
     title: '',
@@ -133,7 +137,8 @@ export default function RosterPage() {
         body: JSON.stringify({
           name: newStudentName.trim(),
           class_name: newStudentClass.trim(),
-          absent_no: newStudentAbsentNo.trim()
+          absent_no: newStudentAbsentNo.trim(),
+          parent_phone: newStudentParentPhone.trim()
         })
       });
       const data = await res.json();
@@ -142,6 +147,7 @@ export default function RosterPage() {
         setNewStudentName('');
         setNewStudentClass('');
         setNewStudentAbsentNo('');
+        setNewStudentParentPhone('');
         setShowAddModal(false);
         fetchServerStatus();
       } else {
@@ -168,7 +174,8 @@ export default function RosterPage() {
         body: JSON.stringify({
           new_name: editName.trim(),
           class_name: editClass.trim(),
-          absent_no: editAbsentNo.trim()
+          absent_no: editAbsentNo.trim(),
+          parent_phone: editParentPhone.trim()
         })
       });
       const data = await res.json();
@@ -406,6 +413,7 @@ export default function RosterPage() {
                     setEditAbsentNo(student.absent_no);
                     setEditUsername(student.username || '');
                     setEditPassword(student.password || '');
+                    setEditParentPhone(student.parent_phone || '');
                   }}
                   className="flex items-center justify-between p-4 hover:bg-primary/[0.04] transition-all cursor-pointer border-l-4"
                   style={{
@@ -505,6 +513,17 @@ export default function RosterPage() {
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-slate-400 transition-all"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-bold text-slate-400 block mb-1 uppercase tracking-wider">No. HP Orang Tua (Notifikasi WA/TG)</label>
+                  <input
+                    type="text"
+                    value={editParentPhone}
+                    onChange={(e) => setEditParentPhone(e.target.value)}
+                    placeholder="Contoh: 08123456789"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-slate-400 transition-all"
+                  />
                 </div>
 
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex justify-between items-center text-xs">
@@ -663,6 +682,17 @@ export default function RosterPage() {
                   onChange={(e) => setNewStudentAbsentNo(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-slate-400"
                   required
+                />
+              </div>
+
+              <div>
+                <label className="text-[9px] font-bold text-slate-400 block mb-1 uppercase tracking-wider">No. HP Orang Tua (Notifikasi WA/TG)</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: 08123456789"
+                  value={newStudentParentPhone}
+                  onChange={(e) => setNewStudentParentPhone(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-slate-400"
                 />
               </div>
 

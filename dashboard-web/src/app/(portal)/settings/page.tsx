@@ -15,7 +15,13 @@ export default function SettingsPage() {
     gracePeriod: 0,
     whatsappNotificationsEnabled: true,
     webhookEnabled: false,
-    webhookUrl: ''
+    webhookUrl: '',
+    telegramEnabled: false,
+    telegramBotToken: '',
+    telegramChatId: '',
+    whatsappApiUrl: '',
+    whatsappApiKey: '',
+    whatsappDefaultRecipient: ''
   });
   const [status, setStatus] = useState('');
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
@@ -242,17 +248,100 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div
-              onClick={() => handleChange('whatsappNotificationsEnabled', !settings.whatsappNotificationsEnabled)}
-              className="flex items-center justify-between p-4 bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-800 rounded-xl hover:bg-slate-100/80 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-            >
-              <div>
-                <h4 className="font-bold text-slate-900 dark:text-white text-xs">Notifikasi WhatsApp Orang Tua</h4>
-                <p className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium mt-0.5">Kirim pesan WhatsApp otomatis ke orang tua ketika absensi terekam</p>
+            {/* WhatsApp Notification Block */}
+            <div className="border border-slate-150 dark:border-zinc-800 rounded-2xl overflow-hidden space-y-0">
+              <div
+                onClick={() => handleChange('whatsappNotificationsEnabled', !settings.whatsappNotificationsEnabled)}
+                className="flex items-center justify-between p-4 bg-slate-50 dark:bg-zinc-850 border-b border-slate-150 dark:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-xs">Notifikasi WhatsApp Orang Tua</h4>
+                  <p className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium mt-0.5">Kirim pesan WhatsApp otomatis ke orang tua ketika absensi terekam</p>
+                </div>
+                <div className={`w-10 h-5 rounded-full relative shadow-inner transition-colors ${settings.whatsappNotificationsEnabled ? 'bg-primary' : 'bg-slate-200 dark:bg-zinc-700'}`}>
+                  <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${settings.whatsappNotificationsEnabled ? 'right-0.5' : 'left-0.5'}`}></div>
+                </div>
               </div>
-              <div className={`w-10 h-5 rounded-full relative shadow-inner transition-colors ${settings.whatsappNotificationsEnabled ? 'bg-primary' : 'bg-slate-200 dark:bg-zinc-700'}`}>
-                <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${settings.whatsappNotificationsEnabled ? 'right-0.5' : 'left-0.5'}`}></div>
+
+              {settings.whatsappNotificationsEnabled && (
+                <div className="p-4 bg-white dark:bg-zinc-900 space-y-3.5 animate-slide-down">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider block mb-1">WhatsApp API Gateway URL</label>
+                      <input
+                        type="url"
+                        value={settings.whatsappApiUrl}
+                        onChange={(e) => handleChange('whatsappApiUrl', e.target.value)}
+                        placeholder="https://api.fonnte.com/send"
+                        className="w-full bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-850 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 dark:text-zinc-300 focus:outline-none focus:border-primary transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider block mb-1">WhatsApp API Token / Key</label>
+                      <input
+                        type="text"
+                        value={settings.whatsappApiKey}
+                        onChange={(e) => handleChange('whatsappApiKey', e.target.value)}
+                        placeholder="Token API dari Fonnte / Gateway"
+                        className="w-full bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-850 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 dark:text-zinc-300 focus:outline-none focus:border-primary transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider block mb-1">No. HP Penerima Default / Admin (Jika No. HP Ortu Kosong)</label>
+                    <input
+                      type="text"
+                      value={settings.whatsappDefaultRecipient}
+                      onChange={(e) => handleChange('whatsappDefaultRecipient', e.target.value)}
+                      placeholder="08123456789"
+                      className="w-full bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-850 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 dark:text-zinc-300 focus:outline-none focus:border-primary transition-all"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Telegram Notification Block */}
+            <div className="border border-slate-150 dark:border-zinc-800 rounded-2xl overflow-hidden space-y-0">
+              <div
+                onClick={() => handleChange('telegramEnabled', !settings.telegramEnabled)}
+                className="flex items-center justify-between p-4 bg-slate-50 dark:bg-zinc-850 border-b border-slate-150 dark:border-zinc-800 hover:bg-slate-100/80 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-xs">Notifikasi Telegram Bot</h4>
+                  <p className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium mt-0.5">Kirim notifikasi kehadiran siswa secara real-time ke Channel / Group Telegram</p>
+                </div>
+                <div className={`w-10 h-5 rounded-full relative shadow-inner transition-colors ${settings.telegramEnabled ? 'bg-primary' : 'bg-slate-200 dark:bg-zinc-700'}`}>
+                  <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${settings.telegramEnabled ? 'right-0.5' : 'left-0.5'}`}></div>
+                </div>
               </div>
+
+              {settings.telegramEnabled && (
+                <div className="p-4 bg-white dark:bg-zinc-900 space-y-3.5 animate-slide-down">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider block mb-1">Telegram Bot Token</label>
+                      <input
+                        type="text"
+                        value={settings.telegramBotToken}
+                        onChange={(e) => handleChange('telegramBotToken', e.target.value)}
+                        placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
+                        className="w-full bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-850 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 dark:text-zinc-300 focus:outline-none focus:border-primary transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider block mb-1">Telegram Chat ID / Group ID</label>
+                      <input
+                        type="text"
+                        value={settings.telegramChatId}
+                        onChange={(e) => handleChange('telegramChatId', e.target.value)}
+                        placeholder="-100123456789 atau ID Chat"
+                        className="w-full bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-850 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 dark:text-zinc-300 focus:outline-none focus:border-primary transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

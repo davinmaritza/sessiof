@@ -16,7 +16,13 @@ const defaultSettings = {
   livenessEnabled: true,
   livenessThreshold: 50,
   gracePeriod: 0,
-  whatsappNotificationsEnabled: true
+  whatsappNotificationsEnabled: true,
+  telegramEnabled: false,
+  telegramBotToken: '',
+  telegramChatId: '',
+  whatsappApiUrl: '',
+  whatsappApiKey: '',
+  whatsappDefaultRecipient: ''
 };
 
 export async function GET() {
