@@ -78,7 +78,7 @@ export default function LoginPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.746 3.746 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
             </svg>
           </div>
-          <h1 className="text-[22px] font-semibold text-white tracking-tight">Masuk ke Sessiof</h1>
+          <h1 className="text-[22px] font-semibold tracking-tight login-title">Masuk ke Sessiof</h1>
           <p className="text-[13px] text-[#8a8a9a] mt-1.5">Sistem absensi presensi wajah sekolah</p>
         </div>
 
@@ -102,7 +102,7 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-medium text-[#8a8a9a] block tracking-wide">
+              <label className="text-[11px] font-medium block tracking-wide login-label">
                 Username
               </label>
               <input
@@ -110,28 +110,20 @@ export default function LoginPage() {
                 placeholder="Masukkan username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-3.5 py-3 text-[13px] text-white font-medium rounded-xl transition-all duration-200"
-                style={{ 
-                  background: 'rgba(255,255,255,0.05)', 
-                  border: '1px solid rgba(255,255,255,0.1)',
-                }}
+                className="w-full px-3.5 py-3 text-[13px] font-medium rounded-xl transition-all duration-200 login-input"
                 required
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-medium text-[#8a8a9a] block tracking-wide">Password</label>
+              <label className="text-[11px] font-medium block tracking-wide login-label">Password</label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Masukkan password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3.5 py-3 pr-10 text-[13px] text-white font-medium rounded-xl transition-all duration-200"
-                  style={{ 
-                    background: 'rgba(255,255,255,0.05)', 
-                    border: '1px solid rgba(255,255,255,0.1)',
-                  }}
+                  className="w-full px-3.5 py-3 pr-10 text-[13px] font-medium rounded-xl transition-all duration-200 login-input"
                   required
                 />
                 <button

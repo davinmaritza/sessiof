@@ -382,3 +382,30 @@ button:not(.rounded-full) {
   border-color: rgba(96, 165, 250, 0.25) !important;
 }
 
+/* ── Login Page Overrides ────────────────── */
+.login-title {
+  color: #ffffff !important;
+}
+
+.login-label {
+  color: #8a8a9a !important;
+}
+
+.login-input {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.login-input::placeholder {
+  color: #8a8a9a !important;
+  opacity: 0.6;
+}
+
+.login-input:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(91, 77, 199, 0.25) !important;
+  background-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+
