@@ -11,7 +11,7 @@ out/
 build/
 dist/
 
-# Sensitive Face Attendance Data
+# Sensitive Runtime & User Data (jangan di-commit!)
 dataset/
 trainer.yml
 names.npy
@@ -20,6 +20,10 @@ students_metadata.json
 attendance.xlsx
 admin_account.json
 agenda_kalender.json
+users.json
+settings.json
+*.xlsx
+*.pkl
 
 
 # Local Environment Variables
