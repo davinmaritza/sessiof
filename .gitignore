@@ -4,6 +4,13 @@ __pycache__/
 *.pyc
 *.onnx
 
+# Haar Cascade & ML Model Files (besar, tidak perlu di-repo)
+*.xml
+haarcascade_*
+
+# Design & Internal Docs
+DESIGN.md
+
 # Node Modules and Build Files
 node_modules/
 .next/
