@@ -730,104 +730,128 @@ export default function RosterPage() {
         const presenceRate = totalLogs > 0 ? Math.round((totalPresent / totalLogs) * 100) : 0;
         
         return (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in text-slate-800">
-            <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-6 hover:scale-[1.005] transition-all duration-300">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in">
+            <div className="border rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-6 hover:scale-[1.005] transition-all duration-300 relative overflow-hidden"
+              style={{
+                background: 'var(--bg-panel)',
+                borderColor: 'var(--border-panel)',
+                boxShadow: '0 25px 50px -12px var(--shadow-color), var(--shadow-lg)'
+              }}
+            >
+              {/* Background gradient blur */}
+              <div className="absolute -top-24 -left-24 w-48 h-48 rounded-full opacity-10 blur-3xl pointer-events-none"
+                style={{ background: 'var(--primary)' }} />
               
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex justify-between items-center border-b pb-4 relative z-10" style={{ borderColor: 'var(--border-element)' }}>
                 <div>
-                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Analisis Aktivitas</span>
-                  <h4 className="text-base font-black text-slate-900 mt-0.5">Statistik Kehadiran: {analyticsStudent.name}</h4>
+                  <span className="text-[9px] text-primary font-extrabold uppercase tracking-widest block">Analisis Aktivitas</span>
+                  <h4 className="text-base font-black text-slate-900 mt-1 tracking-tight" style={{ color: 'var(--text-title)' }}>
+                    Statistik Kehadiran: {analyticsStudent.name}
+                  </h4>
                 </div>
                 <button 
                   onClick={() => {
                     setIsAnalyticsOpen(false);
                     setAnalyticsStudent(null);
                   }} 
-                  className="text-slate-400 hover:text-slate-600 font-bold cursor-pointer"
+                  className="h-7 w-7 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500 flex items-center justify-center transition-all cursor-pointer border border-transparent"
+                  style={{ background: 'var(--bg-element)', color: 'var(--text-muted)' }}
                 >
-                  ✕
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
 
               {/* Attendance metrics */}
-              <div className="grid grid-cols-2 gap-4 items-center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-center relative z-10">
                 {/* Circular Progress Ring */}
-                <div className="flex flex-col items-center justify-center p-4 bg-slate-50 border border-slate-100 rounded-2xl">
-                  <div className="relative w-24 h-24 flex items-center justify-center">
+                <div className="flex flex-col items-center justify-center p-5 rounded-2xl border"
+                  style={{ background: 'var(--bg-element)', borderColor: 'var(--border-element)' }}>
+                  <div className="relative w-28 h-28 flex items-center justify-center">
                     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                       <path
-                        className="text-slate-200"
+                        className="opacity-10"
                         strokeWidth="3"
-                        stroke="currentColor"
+                        stroke="var(--text-muted)"
                         fill="none"
                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                       />
                       <path
-                        className="text-primary transition-all duration-500"
-                        strokeWidth="3"
+                        className="transition-all duration-500"
+                        strokeWidth="3.2"
                         strokeDasharray={`${presenceRate}, 100`}
                         strokeLinecap="round"
-                        stroke="currentColor"
+                        stroke="var(--primary)"
                         fill="none"
                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        style={{ filter: 'drop-shadow(0px 2px 4px rgba(91,77,199,0.25))' }}
                       />
                     </svg>
                     <div className="absolute flex flex-col items-center">
-                      <span className="text-xl font-black text-slate-950">{presenceRate}%</span>
-                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Hadir</span>
+                      <span className="text-2xl font-black tracking-tight" style={{ color: 'var(--text-title)' }}>{presenceRate}%</span>
+                      <span className="text-[8px] font-extrabold text-primary uppercase tracking-widest">Hadir</span>
                     </div>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-semibold mt-3">Persentase Kehadiran</span>
+                  <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mt-4" style={{ color: 'var(--text-muted)' }}>
+                    Rasio Kehadiran
+                  </span>
                 </div>
 
                 {/* Stat Cards */}
-                <div className="grid grid-cols-2 gap-2 text-center">
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5">
-                    <span className="text-[8px] font-bold text-slate-400 block uppercase">Tepat Waktu</span>
-                    <span className="text-base font-black text-slate-900 mt-1 block">{tepatWaktu}</span>
+                <div className="grid grid-cols-2 gap-3 text-center">
+                  <div className="rounded-2xl p-3 border transition-all hover:scale-[1.02]"
+                    style={{ background: 'rgba(16, 185, 129, 0.04)', borderColor: 'rgba(16, 185, 129, 0.15)' }}>
+                    <span className="text-[8px] font-extrabold text-emerald-600 uppercase tracking-wider block">Tepat Waktu</span>
+                    <span className="text-xl font-black text-emerald-500 mt-1 block">{tepatWaktu}</span>
                   </div>
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5">
-                    <span className="text-[8px] font-bold text-slate-400 block uppercase">Terlambat</span>
-                    <span className="text-base font-black text-slate-900 mt-1 block text-orange-500">{terlambat}</span>
+                  <div className="rounded-2xl p-3 border transition-all hover:scale-[1.02]"
+                    style={{ background: 'rgba(245, 158, 11, 0.04)', borderColor: 'rgba(245, 158, 11, 0.15)' }}>
+                    <span className="text-[8px] font-extrabold text-amber-600 uppercase tracking-wider block">Terlambat</span>
+                    <span className="text-xl font-black text-amber-500 mt-1 block">{terlambat}</span>
                   </div>
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5">
-                    <span className="text-[8px] font-bold text-slate-400 block uppercase">Izin/Sakit</span>
-                    <span className="text-base font-black text-slate-900 mt-1 block text-blue-500">{sakit + izin}</span>
+                  <div className="rounded-2xl p-3 border transition-all hover:scale-[1.02]"
+                    style={{ background: 'rgba(59, 130, 246, 0.04)', borderColor: 'rgba(59, 130, 246, 0.15)' }}>
+                    <span className="text-[8px] font-extrabold text-blue-600 uppercase tracking-wider block">Izin/Sakit</span>
+                    <span className="text-xl font-black text-blue-500 mt-1 block">{sakit + izin}</span>
                   </div>
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5">
-                    <span className="text-[8px] font-bold text-slate-400 block uppercase">Alpa</span>
-                    <span className="text-base font-black text-slate-900 mt-1 block text-red-500">{alpa}</span>
+                  <div className="rounded-2xl p-3 border transition-all hover:scale-[1.02]"
+                    style={{ background: 'rgba(220, 74, 70, 0.04)', borderColor: 'rgba(220, 74, 70, 0.15)' }}>
+                    <span className="text-[8px] font-extrabold text-red-500 uppercase tracking-wider block">Alpa</span>
+                    <span className="text-xl font-black text-red-500 mt-1 block">{alpa}</span>
                   </div>
                 </div>
               </div>
 
               {/* Roster logs table */}
-              <div className="space-y-2">
-                <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Log Riwayat Terkini</h5>
-                <div className="border border-slate-150 rounded-xl overflow-hidden shadow-inner max-h-40 overflow-y-auto">
-                  <table className="w-full text-left text-[11px] whitespace-nowrap">
-                    <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase text-[9px]">
+              <div className="space-y-3 relative z-10">
+                <h5 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                  Log Riwayat Terkini
+                </h5>
+                <div className="border rounded-2xl overflow-hidden shadow-inner max-h-48 overflow-y-auto" style={{ borderColor: 'var(--border-element)' }}>
+                  <table className="w-full text-left text-[11px] whitespace-nowrap border-collapse">
+                    <thead className="border-b text-[9px] font-extrabold uppercase" style={{ background: 'var(--bg-element)', borderColor: 'var(--border-element)' }}>
                       <tr>
-                        <th className="py-2.5 px-3">Tanggal</th>
-                        <th className="py-2.5 px-3">Jam Absen</th>
-                        <th className="py-2.5 px-3 text-center">Status</th>
+                        <th className="py-3 px-4">Tanggal</th>
+                        <th className="py-3 px-4">Jam Absen</th>
+                        <th className="py-3 px-4 text-center">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y" style={{ borderColor: 'var(--border-element)' }}>
                       {studentRecords.length > 0 ? (
                         studentRecords.map((r, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                            <td className="py-2 px-3 font-semibold text-slate-650">{r.Tanggal} {r.Bulan} {r.Tahun}</td>
-                            <td className="py-2 px-3 font-bold text-slate-800">{r['Waktu Absen'] || '-'}</td>
-                            <td className="py-2 px-3 text-center">
-                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                                r.Status === 'Sakit' || r.Status === 'Izin' 
-                                  ? 'bg-blue-50 text-blue-600' 
+                          <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="py-3 px-4 font-semibold" style={{ color: 'var(--text-body)' }}>{r.Tanggal} {r.Bulan} {r.Tahun}</td>
+                            <td className="py-3 px-4 font-bold font-mono" style={{ color: 'var(--text-title)' }}>{r['Waktu Absen'] || '-'}</td>
+                            <td className="py-3 px-4 text-center">
+                              <span className={`px-3 py-1 rounded-full text-[9px] font-extrabold uppercase tracking-wider border
+                                ${r.Status === 'Sakit' || r.Status === 'Izin' 
+                                  ? 'bg-blue-50 text-blue-600 border-blue-100' 
                                   : r.Status === 'Alpa' 
-                                  ? 'bg-red-50 text-red-600' 
+                                  ? 'bg-red-50 text-red-600 border-red-100' 
                                   : r['Waktu Absen'] && r['Waktu Absen'] > settings.arrivalTime + ":00"
-                                  ? 'bg-orange-50 text-orange-600'
-                                  : 'bg-emerald-50 text-emerald-600'
+                                  ? 'bg-amber-50 text-amber-600 border-amber-100'
+                                  : 'bg-emerald-50 text-emerald-600 border-emerald-100'
                               }`}>
                                 {r.Status || 'Hadir'}
                               </span>
@@ -836,7 +860,9 @@ export default function RosterPage() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={3} className="py-8 text-center text-slate-400 font-semibold">Tidak ada log absensi terekam.</td>
+                          <td colSpan={3} className="py-12 text-center text-slate-400 font-semibold" style={{ color: 'var(--text-muted)' }}>
+                            Tidak ada log absensi terekam.
+                          </td>
                         </tr>
                       )}
                     </tbody>
