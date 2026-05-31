@@ -242,15 +242,25 @@ export default function DashboardPage() {
     } catch (error) { setActionStatus('Gagal menghentikan kamera.'); }
   };
 
+  // Filter data for Guru / Wali Kelas (Filtered Teacher View)
+  const isGuru = userRole === 'guru';
+  const filteredStudents = isGuru && userClass
+    ? serverStatus.students.filter(s => s.class_name === userClass)
+    : serverStatus.students;
+    
+  const filteredRecords = isGuru && userClass
+    ? records.filter(r => r.Kelas === userClass)
+    : records;
+
   // Metrics
-  const totalStudents = serverStatus.total_students;
+  const totalStudents = filteredStudents.length;
   const today = new Date().getDate().toString();
-  const presentToday = new Set(records.filter((r) => r.Tanggal.toString() === today).map((r) => r.Nama)).size;
+  const presentToday = new Set(filteredRecords.filter((r) => r.Tanggal.toString() === today).map((r) => r.Nama)).size;
   const absentStudents = Math.max(0, totalStudents - presentToday);
   const presenceRate = totalStudents > 0 ? ((presentToday / totalStudents) * 100).toFixed(1) : '0.0';
 
   let tepatWaktu = 0, terlambat = 0, sakitIzin = 0;
-  records.forEach(r => {
+  filteredRecords.forEach(r => {
     if (r.Status === 'Izin' || r.Status === 'Sakit') {
       sakitIzin++;
     } else if (r.Status === 'Terlambat') {
@@ -262,7 +272,7 @@ export default function DashboardPage() {
       else tepatWaktu++;
     }
   });
-  const totalLogs = records.filter(r => r.Status !== 'Alpa').length || 1;
+  const totalLogs = filteredRecords.filter(r => r.Status !== 'Alpa').length || 1;
   const tepatWaktuPct = Math.round((tepatWaktu / totalLogs) * 100);
   const terlambatPct = Math.round((terlambat / totalLogs) * 100);
   const sakitIzinPct = Math.round((sakitIzin / totalLogs) * 100);
@@ -279,7 +289,7 @@ export default function DashboardPage() {
       if (idx === -1) idx = idNames.findIndex(n => lower.startsWith(n.substring(0,3)));
       return idx;
     };
-    records.forEach(r => {
+    filteredRecords.forEach(r => {
       if (r.Bulan) {
         const m = getMonthIndex(r.Bulan.toString());
         if (m >= 0 && m < 12) monthlyCounts[m]++;
@@ -293,13 +303,13 @@ export default function DashboardPage() {
   const getFrequentlyAbsentStudents = () => {
     const alpaMap: { [name: string]: { count: number, class: string } } = {};
     
-    if (serverStatus.students) {
-      serverStatus.students.forEach(s => {
+    if (filteredStudents) {
+      filteredStudents.forEach(s => {
         alpaMap[s.name] = { count: 0, class: s.class_name };
       });
     }
 
-    records.forEach(r => {
+    filteredRecords.forEach(r => {
       if (r.Status === 'Alpa' && r.Nama) {
         if (alpaMap[r.Nama]) {
           alpaMap[r.Nama].count++;
@@ -637,6 +647,11 @@ export default function DashboardPage() {
             </table>
           </div>
         </div>
+
+        {/* Attendance Heatmap */}
+        <div className="pt-2">
+          <AttendanceHeatmap records={filteredRecords} />
+        </div>
       </div>
 
       {/* RIGHT SIDEBAR */}
@@ -739,10 +754,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Attendance Heatmap */}
-      <div className="px-6 md:px-8 pb-6">
-        <AttendanceHeatmap records={records} />
-      </div>
 
       <ConfirmModal
         isOpen={confirmOpen}

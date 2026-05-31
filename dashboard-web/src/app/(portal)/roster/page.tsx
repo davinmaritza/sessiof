@@ -63,6 +63,8 @@ export default function RosterPage() {
   const [isTraining, setIsTraining] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [availableClasses, setAvailableClasses] = useState<{name: string}[]>([]);
+  const [userRole, setUserRole] = useState('admin');
+  const [userClass, setUserClass] = useState('');
 
   // State untuk Analisis Siswa
   const [analyticsStudent, setAnalyticsStudent] = useState<Student | null>(null);
@@ -117,6 +119,14 @@ export default function RosterPage() {
   };
 
   useEffect(() => {
+    const role = localStorage.getItem('sessiof_user_role') || 'admin';
+    const ucls = localStorage.getItem('sessiof_user_class') || '';
+    setUserRole(role);
+    setUserClass(ucls);
+    if (role === 'guru' && ucls) {
+      setRosterClassFilter(ucls);
+    }
+    
     fetchServerStatus();
     fetchAvailableClasses();
     fetchAttendance();
@@ -327,7 +337,11 @@ export default function RosterPage() {
   const getInitials = (name: string) => name.trim().split(/\s+/).map(n => n[0]).slice(0, 2).join('').toUpperCase();
   const rosterClasses = ['Semua', ...Array.from(new Set(serverStatus.students.map(s => s.class_name).filter(Boolean)))];
   
-  let filteredRoster = serverStatus.students;
+  const isGuru = userRole === 'guru';
+  let filteredRoster = isGuru && userClass
+    ? serverStatus.students.filter(s => s.class_name === userClass)
+    : serverStatus.students;
+  
   if (rosterSearch.trim() !== '') {
     const q = rosterSearch.toLowerCase();
     filteredRoster = filteredRoster.filter(s =>
@@ -351,7 +365,14 @@ export default function RosterPage() {
         </div>
         
         <button 
-          onClick={() => setShowAddModal(true)}
+          onClick={() => {
+            if (isGuru && userClass) {
+              setNewStudentClass(userClass);
+            } else {
+              setNewStudentClass('');
+            }
+            setShowAddModal(true);
+          }}
           className="bg-primary hover:bg-primary-light text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md hover:scale-[1.02] active:scale-95"
         >
           + Tambah Siswa Baru
@@ -381,11 +402,16 @@ export default function RosterPage() {
                 <select
                   value={rosterClassFilter}
                   onChange={(e) => setRosterClassFilter(e.target.value)}
-                  className="appearance-none bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 text-[10px] font-bold text-slate-650 focus:outline-none focus:border-slate-400 cursor-pointer min-w-[110px]"
+                  disabled={isGuru && !!userClass}
+                  className="appearance-none bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 text-[10px] font-bold text-slate-650 focus:outline-none focus:border-slate-400 cursor-pointer min-w-[110px] disabled:opacity-75 disabled:cursor-not-allowed"
                 >
-                  {rosterClasses.map(cls => (
-                    <option key={cls} value={cls}>Kelas: {cls}</option>
-                  ))}
+                  {isGuru && userClass ? (
+                    <option value={userClass}>Kelas: {userClass}</option>
+                  ) : (
+                    rosterClasses.map(cls => (
+                      <option key={cls} value={cls}>Kelas: {cls}</option>
+                    ))
+                  )}
                 </select>
                 <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-slate-400">▼</span>
               </div>
@@ -663,13 +689,20 @@ export default function RosterPage() {
                 <select
                   value={newStudentClass}
                   onChange={(e) => setNewStudentClass(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-slate-400 font-bold text-slate-700"
+                  disabled={isGuru && !!userClass}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-slate-400 font-bold text-slate-700 disabled:opacity-75 disabled:cursor-not-allowed"
                   required
                 >
-                  <option value="" disabled>Pilih Kelas</option>
-                  {availableClasses.map((cls, idx) => (
-                    <option key={idx} value={cls.name}>{cls.name}</option>
-                  ))}
+                  {isGuru && userClass ? (
+                    <option value={userClass}>{userClass}</option>
+                  ) : (
+                    <>
+                      <option value="" disabled>Pilih Kelas</option>
+                      {availableClasses.map((cls, idx) => (
+                        <option key={idx} value={cls.name}>{cls.name}</option>
+                      ))}
+                    </>
+                  )}
                 </select>
               </div>
 
