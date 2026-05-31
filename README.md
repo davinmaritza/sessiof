@@ -8,13 +8,15 @@ Sessiof mendeteksi dan mengenali wajah siswa secara *real-time* menggunakan kame
 
 ## 🌟 Fitur Utama
 
-### 🤖 Sistem Kamera Absensi
+### 🤖 Sistem Kamera Absensi & Keamanan
 - **Registrasi Wajah Baru** — Mengambil sampel wajah siswa dari berbagai sudut secara otomatis.
 - **Deteksi & Absensi Real-Time** — Mengenali wajah di kamera dengan *anti-duplicate log* harian.
 - **Status Kehadiran Lengkap** — Hadir, Terlambat, Izin, Sakit, dan Alpa (auto-generate).
+- **Uji Pose Wajah & Liveness Challenge (Anti-Spoofing Interaktif)** — Deteksi liveness interaktif (menghadap tengah, tantangan warna layar, dan menoleh kiri/kanan) untuk mencegah kecurangan scan wajah menggunakan foto atau layar ponsel.
 
-### 📊 Portal Admin Web (Next.js)
-- **Dashboard Statistik** — Statistik hadir, terlambat, izin, sakit & alpa dengan grafik interaktif.
+### 📊 Portal Web (Next.js)
+- **Dashboard Statistik** — Statistik hadir, terlambat, izin, sakit & alpa dengan grafik interaktif (Tren Bulanan & Distribusi Kehadiran).
+- **Portal Khusus Guru & Wali Kelas (Filtered Teacher View)** — Wali kelas memiliki portal khusus yang membatasi visualisasi grafik, persentase kehadiran, daftar siswa (roster), log aktivitas, dan notifikasi alpa hanya untuk kelas yang diampu secara otomatis.
 - **Statistik per Kelas** — Laporan mendalam tiap kelas untuk Wali Kelas & Admin.
 - **Daftar Kehadiran** — Tabel kehadiran lengkap dengan filter kelas, status, dan tanggal.
 - **Kalender Akademik** — CRUD agenda dan kegiatan sekolah langsung dari portal.
@@ -26,8 +28,9 @@ Sessiof mendeteksi dan mengenali wajah siswa secara *real-time* menggunakan kame
 - **Pengaturan Sistem** — Toleransi keterlambatan (grace period) & notifikasi WhatsApp.
 
 ### 🔔 Integrasi & Notifikasi
-- **Notifikasi WhatsApp Orang Tua** — Simulasi kirim pesan otomatis saat siswa tidak hadir.
+- **Notifikasi WhatsApp & Telegram Orang Tua** — Pengiriman pesan otomatis kepada wali murid saat siswa terdeteksi hadir, terlambat, maupun memiliki akumulasi status Alpa.
 - **Google Sheets Sync** — Sinkronisasi data absensi ke Google Sheets via Webhook.
+
 
 ---
 
@@ -153,6 +156,15 @@ npm run dev
 ```
 
 Akses portal di browser: **http://localhost:3000**
+
+Saat dev server menerima request, terminal Next.js akan menampilkan log routing real-time yang rapi dan berwarna (ANSI colors):
+
+```text
+  [15:10:05] GET    /dashboard
+  [15:10:07] GET    /api/settings
+  [15:10:08] GET    /api/attendance
+  [15:10:11] POST   /api/agenda
+```
 
 ---
 
