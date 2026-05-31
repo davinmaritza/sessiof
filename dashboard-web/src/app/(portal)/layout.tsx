@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import SessiofLogo from '@/components/SessiofLogo';
+import NotificationBell from '@/components/NotificationBell';
+import ChangePasswordModal from '@/components/ChangePasswordModal';
 
 export default function PortalLayout({
   children,
@@ -18,6 +20,8 @@ export default function PortalLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [userRole, setUserRole] = useState('admin');
   const [userName, setUserName] = useState('Administrator');
+  const [userUsername, setUserUsername] = useState('admin');
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   const fetchDarkMode = async () => {
     try {
@@ -41,8 +45,10 @@ export default function PortalLayout({
 
     const role = localStorage.getItem('sessiof_user_role') || 'admin';
     const name = localStorage.getItem('sessiof_user_name') || 'Administrator';
+    const uname = localStorage.getItem('sessiof_username') || 'admin';
     setUserRole(role);
     setUserName(name);
+    setUserUsername(uname);
 
     // Route Guard: Guru cannot access roster, kelas, users, settings
     const currentPath = pathname;
@@ -347,38 +353,51 @@ export default function PortalLayout({
             </Link>
 
             {/* Profile Footer */}
-            <div className="flex items-center justify-between px-2 py-2 rounded-lg" style={{ background: 'var(--bg-element)', border: '1px solid var(--border-element)' }}>
-              <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-full flex items-center justify-center font-semibold text-[11px] text-white"
+            <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-element)', border: '1px solid var(--border-element)' }}>
+              <div className="flex items-center gap-2.5 px-2.5 py-2.5">
+                <div className="h-8 w-8 rounded-full flex items-center justify-center font-semibold text-[11px] text-white shrink-0"
                   style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}>
-                  {userName.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase()}
+                  {userName.split(' ').map((n: string) => n[0]).slice(0,2).join('').toUpperCase()}
                 </div>
-                <div className="min-w-0">
-                  <span className="font-semibold text-[12px] block leading-tight truncate text-slate-800 dark:text-zinc-200" style={{ color: 'var(--text-title)' }}>{userName}</span>
+                <div className="min-w-0 flex-1">
+                  <span className="font-semibold text-[12px] block leading-tight truncate" style={{ color: 'var(--text-title)' }}>{userName}</span>
                   <span className="text-[10px] block mt-0.5 truncate uppercase font-bold" style={{ color: 'var(--text-muted)' }}>{userRole}</span>
                 </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setShowChangePassword(true)}
+                    className="p-1.5 rounded-lg hover:bg-primary/10 transition-colors cursor-pointer"
+                    title="Ganti Password"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
+                    title="Keluar"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                    </svg>
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={handleLogout}
-                className="p-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
-                title="Keluar"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
-                </svg>
-              </button>
             </div>
           </div>
         </aside>
 
         {/* Main Content */}
         <main className="flex-1 overflow-hidden flex flex-col portal-main relative" style={{ background: 'var(--bg-page-start)' }}>
-          {/* Mobile Header */}
-          <div className="flex md:hidden items-center justify-between px-5 py-3.5 border-b shrink-0 z-10" style={{ borderColor: 'var(--border-element)', background: 'var(--bg-sidebar)' }}>
+          {/* Top Header Bar */}
+          <div className="flex items-center justify-between px-5 py-3 border-b shrink-0 z-10" style={{ borderColor: 'var(--border-element)', background: 'var(--bg-sidebar)' }}>
+            {/* Mobile hamburger */}
             <button 
               onClick={() => setIsSidebarOpen(true)}
-              className="p-1.5 rounded-lg hover:bg-primary/[0.08] cursor-pointer"
+              className="p-1.5 rounded-lg hover:bg-primary/[0.08] cursor-pointer md:hidden"
               aria-label="Buka menu"
               style={{ color: 'var(--text-body)' }}
             >
@@ -386,12 +405,47 @@ export default function PortalLayout({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
               </svg>
             </button>
-            <span className="font-semibold text-[14px] tracking-tight" style={{ color: 'var(--text-title)' }}>Sessiof</span>
-            <div className="w-8"></div>
+            <span className="font-semibold text-[14px] tracking-tight md:hidden" style={{ color: 'var(--text-title)' }}>Sessiof</span>
+            {/* Desktop spacer */}
+            <div className="hidden md:block" />
+            {/* Right controls */}
+            <div className="flex items-center gap-1">
+              <NotificationBell
+                onNewScan={(scan) => {
+                  window.dispatchEvent(new CustomEvent('show-toast', {
+                    detail: { message: `📸 ${scan.name} (${scan.class_name}) terdeteksi kamera!`, type: 'success' }
+                  }));
+                }}
+              />
+              <button
+                onClick={() => setShowChangePassword(true)}
+                className="p-2 rounded-xl transition-all cursor-pointer hidden md:flex items-center gap-1.5 text-xs font-semibold"
+                style={{ color: 'var(--text-muted)' }}
+                title="Ganti Password"
+              >
+                <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+              </button>
+            </div>
           </div>
           {children}
         </main>
       </div>
+
+      {/* Change Password Modal */}
+      {showChangePassword && (
+        <ChangePasswordModal
+          username={userUsername}
+          onClose={() => setShowChangePassword(false)}
+          onSuccess={() => {
+            window.dispatchEvent(new CustomEvent('show-toast', {
+              detail: { message: '🔐 Password berhasil diperbarui! Silakan login ulang.', type: 'success' }
+            }));
+            setTimeout(() => handleLogout(), 2000);
+          }}
+        />
+      )}
     </div>
   );
 }

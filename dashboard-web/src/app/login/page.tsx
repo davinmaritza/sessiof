@@ -45,6 +45,7 @@ export default function LoginPage() {
           localStorage.setItem('sessiof_admin_logged', 'true');
           localStorage.setItem('sessiof_user_role', data.role);
           localStorage.setItem('sessiof_user_name', data.name);
+          localStorage.setItem('sessiof_username', data.username || username);
           localStorage.setItem('sessiof_user_class', data.class_name || '');
           router.push('/dashboard');
         } else if (data.role === 'student') {

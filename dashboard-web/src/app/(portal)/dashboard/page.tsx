@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import AttendanceHeatmap from '@/components/AttendanceHeatmap';
 
 interface Student {
   name: string;
@@ -599,10 +600,16 @@ export default function DashboardPage() {
                   Simpan
                 </button>
               </div>
+              </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* Attendance Heatmap */}
+      <div className="px-6 md:px-8 pb-6">
+        <AttendanceHeatmap records={records} />
+      </div>
     </div>
   );
 }

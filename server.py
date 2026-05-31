@@ -1433,6 +1433,50 @@ def unified_login():
             
     return jsonify({"error": "Username atau password salah!"}), 401
 
+@app.route('/api/change-password', methods=['POST'])
+def change_password():
+    data = request.json
+    username = data.get("username", "").strip().lower()
+    old_password = data.get("old_password", "").strip()
+    new_password = data.get("new_password", "").strip()
+
+    if not username or not old_password or not new_password:
+        return jsonify({"error": "Semua bidang wajib diisi!"}), 400
+
+    if len(new_password) < 6:
+        return jsonify({"error": "Password baru minimal 6 karakter!"}), 400
+
+    # 1. Coba update di users.json (admin/guru)
+    users_file = "users.json"
+    init_users_db()
+    try:
+        with open(users_file, 'r') as f:
+            users = json.load(f)
+        for u in users:
+            if u.get("username", "").lower() == username:
+                if u.get("password") != old_password:
+                    return jsonify({"error": "Password lama tidak sesuai!"}), 401
+                u["password"] = new_password
+                with open(users_file, 'w') as f:
+                    json.dump(users, f, indent=4)
+                return jsonify({"success": True, "message": "Password berhasil diperbarui!"})
+    except Exception:
+        pass
+
+    # 2. Coba update di students_metadata.json (siswa)
+    metadata = load_metadata()
+    for student_name, info in metadata.items():
+        curr_user = info.get("username", student_name.lower().replace(" ", "")).lower()
+        if curr_user == username:
+            if str(info.get("password", "12345")) != old_password:
+                return jsonify({"error": "Password lama tidak sesuai!"}), 401
+            metadata[student_name]["password"] = new_password
+            save_metadata(metadata)
+            return jsonify({"success": True, "message": "Password berhasil diperbarui!"})
+
+    return jsonify({"error": "Akun tidak ditemukan!"}), 404
+
+
 @app.route('/api/users', methods=['GET', 'POST'])
 def handle_users():
     users_file = "users.json"
