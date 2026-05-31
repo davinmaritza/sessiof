@@ -229,7 +229,7 @@ export default function PortalLayout({
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 ${
                         isActive
                           ? 'text-white shadow-sm'
-                          : 'hover:bg-slate-100/80'
+                          : 'hover:bg-primary/[0.08]'
                       }`}
                       style={isActive 
                         ? { background: 'linear-gradient(135deg, #5b4dc7, #6b5fd0)', color: 'white' }
@@ -258,7 +258,7 @@ export default function PortalLayout({
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 ${
                         isActive
                           ? 'text-white shadow-sm'
-                          : 'hover:bg-slate-100/80'
+                          : 'hover:bg-primary/[0.08]'
                       }`}
                       style={isActive 
                         ? { background: 'linear-gradient(135deg, #5b4dc7, #6b5fd0)', color: 'white' }
@@ -321,7 +321,7 @@ export default function PortalLayout({
           <div className="flex md:hidden items-center justify-between px-5 py-3.5 border-b shrink-0 z-10" style={{ borderColor: 'var(--border-element)', background: 'var(--bg-sidebar)' }}>
             <button 
               onClick={() => setIsSidebarOpen(true)}
-              className="p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
+              className="p-1.5 rounded-lg hover:bg-primary/[0.08] cursor-pointer"
               aria-label="Buka menu"
               style={{ color: 'var(--text-body)' }}
             >
