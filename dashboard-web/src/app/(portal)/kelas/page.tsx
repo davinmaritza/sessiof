@@ -178,29 +178,66 @@ export default function KelasPage() {
             {classes.length === 0 ? (
               <div className="col-span-2 py-12 text-center text-slate-400 text-xs">Belum ada kelas terdaftar.</div>
             ) : (
-              classes.map((cls) => (
-                <div 
-                  key={cls.name}
-                  onClick={() => {
-                    setEditingClass(cls);
-                    setEditClassName(cls.name);
-                  }}
-                  className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between h-28 hover:shadow-md hover:scale-[1.01] ${
-                    editingClass?.name === cls.name 
-                      ? 'bg-slate-50 border-black' 
-                      : 'bg-slate-50/50 border-slate-200/60'
-                  }`}
-                >
-                  <div className="flex justify-between items-start">
-                    <span className="font-extrabold text-sm text-slate-900 tracking-tight leading-tight block">{cls.name}</span>
-                    <span className="text-[14px]">🏫</span>
+              classes.map((cls) => {
+                const isSelected = editingClass?.name === cls.name;
+                return (
+                  <div 
+                    key={cls.name}
+                    onClick={() => {
+                      setEditingClass(cls);
+                      setEditClassName(cls.name);
+                    }}
+                    className="p-5 rounded-2xl border cursor-pointer flex flex-col justify-between h-32 transition-all relative overflow-hidden group hover:scale-[1.01]"
+                    style={{
+                      background: isSelected 
+                        ? 'linear-gradient(135deg, rgba(91, 77, 199, 0.08) 0%, rgba(124, 111, 224, 0.03) 100%)' 
+                        : 'var(--bg-panel)',
+                      borderColor: isSelected 
+                        ? 'var(--primary)' 
+                        : 'var(--border-panel)',
+                      boxShadow: isSelected 
+                        ? '0 10px 25px -5px rgba(91, 77, 199, 0.15), var(--shadow-md)' 
+                        : 'var(--shadow-md)',
+                      transform: isSelected ? 'scale(1.02)' : 'none',
+                    }}
+                  >
+                    {/* Glowing highlight for selected card */}
+                    {isSelected && (
+                      <div className="absolute top-0 right-0 w-24 h-24 rounded-full -mr-5 -mt-5 opacity-20 blur-xl"
+                        style={{ background: 'var(--primary)' }} />
+                    )}
+
+                    <div className="flex justify-between items-start relative z-10">
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-extrabold text-primary uppercase tracking-wider block">Kelas</span>
+                        <span className="font-black text-sm text-slate-900 tracking-tight leading-none block">{cls.name}</span>
+                      </div>
+                      <div className="h-8 w-8 rounded-xl flex items-center justify-center shadow-sm transition-transform group-hover:scale-110"
+                        style={{ 
+                          background: isSelected 
+                            ? 'linear-gradient(135deg, var(--primary), var(--primary-light))' 
+                            : 'var(--primary-surface)',
+                          color: isSelected ? '#ffffff' : 'var(--primary)'
+                        }}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.68 0-5.302.2-7.84.582V21m15.75 0H3.75" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center relative z-10 pt-2 border-t" style={{ borderColor: 'var(--border-element)' }}>
+                      <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Siswa Terdaftar</span>
+                      <span className="text-xs font-black px-3 py-1 rounded-xl transition-all"
+                        style={{ 
+                          background: isSelected ? 'var(--primary-surface)' : 'rgba(91, 77, 199, 0.05)',
+                          color: 'var(--primary)',
+                          border: '1px solid rgba(91, 77, 199, 0.1)'
+                        }}>
+                        {cls.student_count} orang
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Siswa terdaftar</span>
-                    <span className="text-xs font-black text-slate-700 bg-slate-200/60 px-2 py-0.5 rounded-full">{cls.student_count} orang</span>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
