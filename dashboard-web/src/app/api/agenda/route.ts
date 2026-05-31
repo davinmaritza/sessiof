@@ -5,8 +5,26 @@ import path from 'path';
 const jsonPath = path.join(process.cwd(), '..', 'agenda_kalender.json');
 
 async function readData() {
-  const data = await fs.readFile(jsonPath, 'utf8');
-  return JSON.parse(data);
+  try {
+    const data = await fs.readFile(jsonPath, 'utf8');
+    return JSON.parse(data);
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      const defaultData = {
+        agenda: [],
+        academic_calendar: {
+          active_date: new Date().getDate(),
+          events: [
+            { id: 1, title: 'Pembagian Rapor', type: 'Offline', time: '08:00', icon: 'calendar' },
+            { id: 2, title: 'Rapat Wali Kelas', type: 'Online', time: '13:00', icon: 'calendar' }
+          ]
+        }
+      };
+      await fs.writeFile(jsonPath, JSON.stringify(defaultData, null, 2), 'utf8');
+      return defaultData;
+    }
+    throw error;
+  }
 }
 
 async function writeData(data: any) {
