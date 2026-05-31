@@ -504,16 +504,15 @@ export default function AttendancePage() {
                       <select 
                         value={record.Status || 'Hadir'}
                         onChange={(e) => handleStatusChange(record, e.target.value)}
-                        className={`text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider cursor-pointer border outline-none appearance-none text-center
-                          ${(record.Status || 'Hadir') === 'Hadir' ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100' : 
-                            (record.Status === 'Alpa' ? 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100' : 
-                            (record.Status === 'Izin' ? 'bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100' : 
-                            'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100'))}`}
+                        className={`status-select outline-none appearance-none text-center
+                          ${(record.Status || 'Hadir') === 'Hadir' ? 'status-hadir' : 
+                            (record.Status === 'Alpa' ? 'status-alpa' : 
+                            (record.Status === 'Izin' ? 'status-izin' : 'status-sakit'))}`}
                       >
-                        <option value="Hadir">Hadir</option>
-                        <option value="Alpa">Alpa</option>
-                        <option value="Izin">Izin</option>
-                        <option value="Sakit">Sakit</option>
+                        <option value="Hadir" className="text-emerald-600 font-semibold bg-white dark:bg-zinc-800">Hadir</option>
+                        <option value="Alpa" className="text-red-600 font-semibold bg-white dark:bg-zinc-800">Alpa</option>
+                        <option value="Izin" className="text-amber-600 font-semibold bg-white dark:bg-zinc-800">Izin</option>
+                        <option value="Sakit" className="text-blue-600 font-semibold bg-white dark:bg-zinc-800">Sakit</option>
                       </select>
                     </td>
                     <td className="py-4 px-6 font-mono font-bold text-slate-900">{record['Waktu Absen']}</td>

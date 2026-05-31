@@ -2,6 +2,8 @@
   "arrivalTime": "06:30",
   "departureTime": "15:00",
   "desktopNotifications": true,
-  "darkMode": true,
-  "autoBackup": false
+  "darkMode": false,
+  "autoBackup": false,
+  "livenessEnabled": true,
+  "livenessThreshold": 50
 }
