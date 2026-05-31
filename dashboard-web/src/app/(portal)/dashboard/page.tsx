@@ -386,7 +386,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="flex-1 overflow-y-auto p-5 md:p-7 flex flex-col xl:flex-row gap-6 animate-fade-in">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden p-5 md:p-7 flex flex-col xl:flex-row gap-6 animate-fade-in w-full min-w-0">
       
       {/* LEFT COLUMN */}
       <div className="flex-1 space-y-6 min-w-0">
@@ -440,8 +440,8 @@ export default function DashboardPage() {
               {absentAlerts.map((student, i) => (
                 <div key={i} className="bg-white dark:bg-zinc-900 border border-red-100 dark:border-red-500/10 rounded-xl p-3.5 flex flex-col justify-between shadow-sm">
                   <div>
-                    <span className="font-bold text-xs text-slate-800 dark:text-white block">{student.name}</span>
-                    <span className="text-[10px] text-slate-500 dark:text-zinc-400 block mt-0.5">Kelas {student.class_name}</span>
+                     <span className="font-bold text-xs text-slate-800 dark:text-white block">{student.name}</span>
+                     <span className="text-[10px] text-slate-500 dark:text-zinc-400 block mt-0.5">Kelas {student.class_name}</span>
                   </div>
                   <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-50 dark:border-zinc-800">
                     <span className="text-[11px] font-extrabold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 px-2 py-0.5 rounded-md">
@@ -500,9 +500,9 @@ export default function DashboardPage() {
         </div>
 
         {/* Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-slide-up stagger-4">
+        <div className="grid grid-cols-1 2xl:grid-cols-3 gap-6 animate-slide-up stagger-4">
           {/* Monthly Trend Area Chart */}
-          <div className="lg:col-span-2 rounded-xl p-6" style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-panel)' }}>
+          <div className="2xl:col-span-2 rounded-xl p-6" style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-panel)' }}>
             <div className="flex justify-between items-start mb-5">
               <div>
                 <h3 className="font-bold text-[14px]" style={{ color: 'var(--text-title)' }}>Tren Kehadiran Bulanan</h3>
