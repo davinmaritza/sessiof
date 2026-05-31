@@ -66,7 +66,8 @@ export async function DELETE(request: Request) {
         String(row.Tanggal) === String(delRec.Tanggal) && 
         row.Bulan === delRec.Bulan && 
         String(row.Tahun) === String(delRec.Tahun) &&
-        String(row['Waktu Absen'] || '').trim() === String(delRec['Waktu Absen'] || '').trim()
+        String(row['Waktu Absen'] || '').trim() === String(delRec['Waktu Absen'] || '').trim() &&
+        row.Status !== 'Dihapus'
       );
 
       if (rowIndex >= 0) {
@@ -134,7 +135,8 @@ export async function PUT(request: Request) {
       String(row.Tanggal) === String(body.Tanggal) && 
       row.Bulan === body.Bulan && 
       String(row.Tahun) === String(body.Tahun) &&
-      String(row['Waktu Absen'] || '').trim() === String(body['Waktu Absen'] || '').trim()
+      String(row['Waktu Absen'] || '').trim() === String(body['Waktu Absen'] || '').trim() &&
+      row.Status !== 'Dihapus'
     );
 
     if (rowIndex >= 0) {
