@@ -600,7 +600,6 @@ export default function DashboardPage() {
                   Simpan
                 </button>
               </div>
-              </div>
             </form>
           </div>
         </div>

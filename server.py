@@ -10,12 +10,56 @@ import threading
 import time
 import math
 import pickle
+import socket
 from datetime import datetime
 from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 
+# ─────────────────────────────────────────────
+#  Sessiof API Server
+#  Face Attendance System — Python Backend
+# ─────────────────────────────────────────────
+API_VERSION  = "v1.0"
+APP_NAME     = "Sessiof API"
+PORT         = 5000
+
 app = Flask(__name__)
-CORS(app)
+app.config['JSON_SORT_KEYS'] = False
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
+
+# CORS — izinkan Next.js frontend (localhost:3000) dan semua origin saat dev
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "*"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+    }
+})
+
+# ── Global request logger ──────────────────────────────
+@app.before_request
+def log_request():
+    if request.path.startswith('/api/'):
+        ts = datetime.now().strftime('%H:%M:%S')
+        method_colors = {'GET': '\033[92m', 'POST': '\033[94m', 'PUT': '\033[93m', 'DELETE': '\033[91m'}
+        color = method_colors.get(request.method, '\033[0m')
+        print(f"  \033[90m[{ts}]\033[0m {color}{request.method:6}\033[0m  {request.path}")
+
+@app.after_request
+def add_api_headers(response):
+    response.headers['X-API-Version'] = API_VERSION
+    response.headers['X-Powered-By']  = 'Sessiof'
+    return response
+
+# ── Health check / root endpoint ──────────────────────
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    return jsonify({
+        "status": "ok",
+        "server": APP_NAME,
+        "version": API_VERSION,
+        "timestamp": datetime.now().isoformat()
+    })
 
 # Model Deep Learning YuNet & SFace
 YUNET_URL = "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
@@ -1603,6 +1647,41 @@ def migrate_dataset():
             except Exception as e:
                 print(f"Gagal migrasi folder {old_dir}: {e}")
 
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
 if __name__ == '__main__':
     migrate_dataset()
-    app.run(host='0.0.0.0', port=5000)
+    local_ip = get_local_ip()
+    
+    # ── Startup Banner ─────────────────────────────────
+    PURPLE = '\033[95m'
+    CYAN   = '\033[96m'
+    GREEN  = '\033[92m'
+    BOLD   = '\033[1m'
+    DIM    = '\033[2m'
+    RESET  = '\033[0m'
+    
+    print()
+    print(f"  {PURPLE}{BOLD}╔══════════════════════════════════════════╗{RESET}")
+    print(f"  {PURPLE}{BOLD}║  {CYAN}⬡  Sessiof API Server                  {PURPLE}║{RESET}")
+    print(f"  {PURPLE}{BOLD}║  {DIM}Face Attendance System — Backend        {PURPLE}{BOLD}║{RESET}")
+    print(f"  {PURPLE}{BOLD}╚══════════════════════════════════════════╝{RESET}")
+    print()
+    print(f"  {GREEN}▶  Status   {RESET}Running ({API_VERSION})")
+    print(f"  {GREEN}▶  Local    {RESET}http://127.0.0.1:{PORT}")
+    print(f"  {GREEN}▶  Network  {RESET}http://{local_ip}:{PORT}")
+    print(f"  {GREEN}▶  Health   {RESET}http://127.0.0.1:{PORT}/api/health")
+    print()
+    print(f"  {DIM}Press CTRL+C to stop the server{RESET}")
+    print(f"  {'─' * 44}")
+    print()
+    
+    app.run(host='0.0.0.0', port=PORT, debug=False)

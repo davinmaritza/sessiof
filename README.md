@@ -79,15 +79,9 @@ cd sessiof
 
 ---
 
-### 2. Setup Python & Instal Dependensi
+### 2. Instal Dependensi Python
 
 ```bash
-# (Opsional) Buat virtual environment
-python -m venv .venv
-.venv\Scripts\activate        # Windows CMD/PowerShell
-# source .venv/bin/activate   # Linux/macOS
-
-# Instal dependensi Python
 pip install opencv-contrib-python pandas openpyxl requests numpy flask flask-cors
 ```
 
@@ -120,19 +114,37 @@ Buat file `settings.json`:
 
 ---
 
-### 4. Jalankan Flask Server (Backend)
+### 4. Jalankan Flask API Server
 
 ```bash
-# Di folder root sessiof/
-python server.py
+# Windows — gunakan path lengkap jika 'python' tidak dikenali
+C:\Users\<NamaUser>\AppData\Local\Python\bin\python.exe server.py
+
+# Linux / macOS
+python3 server.py
 ```
-Server berjalan di `http://localhost:5000`
+
+> **💡 Tip Windows:** Jika muncul error `Python was not found`, buka **Settings → Apps → Advanced app settings → App execution aliases** dan matikan toggle **python.exe** dan **python3.exe**. Setelah itu `python server.py` langsung jalan.
+
+Saat berhasil, terminal akan menampilkan banner seperti ini:
+
+```
+  ╔══════════════════════════════════════════╗
+  ║  ⬡  Sessiof API Server                  ║
+  ║  Face Attendance System — Backend        ║
+  ╚══════════════════════════════════════════╝
+
+  ▶  Status   Running (v1.0)
+  ▶  Local    http://127.0.0.1:5000
+  ▶  Network  http://192.168.x.x:5000
+  ▶  Health   http://127.0.0.1:5000/api/health
+```
 
 ---
 
 ### 5. Jalankan Portal Web (Frontend)
 
-Buka terminal baru:
+Buka terminal **baru** (jangan tutup terminal Flask):
 
 ```bash
 cd dashboard-web
@@ -144,14 +156,13 @@ Akses portal di browser: **http://localhost:3000**
 
 ---
 
-### 6. Jalankan Kamera Absensi
+### 6. Jalankan Kamera Absensi (Opsional)
 
 ```bash
-# Di folder root sessiof/
-python face_attendance.py
+python server.py   # pastikan sudah running
+# lalu aktifkan kamera dari portal Dashboard → tombol "Mulai Absensi"
 ```
 
----
 
 ## 👤 Akun Default
 
@@ -186,17 +197,41 @@ function doPost(e) {
 
 ---
 
+---
+
 ## 🛠️ Stack Teknologi
 
 | Layer | Teknologi |
 |-------|-----------|
 | **Frontend** | Next.js 15, React 19, TypeScript, Vanilla CSS |
-| **Backend** | Python 3.10+, Flask, Flask-CORS |
+| **Backend** | Python 3.10+, Flask 3.x, Flask-CORS |
 | **Face Detection** | OpenCV + YuNet (`.onnx`) |
 | **Face Recognition** | OpenCV + SFace (`.onnx`) |
 | **Data Storage** | Excel lokal (`.xlsx`) via Pandas & Openpyxl |
 | **Cloud Sync** | Google Apps Script Webhook |
 | **Export** | SheetJS (xlsx) |
+
+---
+
+## 🔌 API Reference
+
+Base URL: `http://localhost:5000`
+
+| Method | Endpoint | Deskripsi |
+|--------|----------|-----------|
+| `GET` | `/api/health` | Health check server |
+| `GET` | `/api/status` | Status kamera & scan terakhir |
+| `POST` | `/api/login` | Login admin/guru/siswa |
+| `POST` | `/api/change-password` | Ganti password sendiri |
+| `GET` | `/api/attendance` | Ambil semua data kehadiran |
+| `GET` | `/api/classes` | Daftar kelas terdaftar |
+| `GET` | `/api/students` | Daftar siswa terdaftar |
+| `GET/POST` | `/api/users` | Kelola akun admin & guru |
+| `PUT/DELETE` | `/api/users/<username>` | Edit / hapus akun |
+| `GET/POST` | `/api/settings` | Pengaturan sistem |
+| `POST` | `/api/camera/start` | Mulai kamera absensi |
+| `POST` | `/api/camera/stop` | Hentikan kamera |
+| `GET` | `/api/stream` | Live video stream (MJPEG) |
 
 ---
 
