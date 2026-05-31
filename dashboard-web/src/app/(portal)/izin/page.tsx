@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import ConfirmModal from '@/components/ConfirmModal';
 
 interface Permit {
   id: number;
@@ -18,6 +19,8 @@ export default function IzinAdminPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [filterClass, setFilterClass] = useState('Semua');
   const [classes, setClasses] = useState<string[]>([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{id: number, action: 'Approved' | 'Rejected'} | null>(null);
   const [userRole, setUserRole] = useState('admin');
   const [userClass, setUserClass] = useState('');
 
@@ -50,12 +53,16 @@ export default function IzinAdminPage() {
     }
   };
 
-  const handleAction = async (id: number, action: 'Approved' | 'Rejected') => {
-    const confirmationText = action === 'Approved' 
-      ? 'Apakah Anda yakin ingin menyetujui pengajuan izin ini? Ketidakhadiran siswa akan otomatis dicatat di log Excel.' 
-      : 'Apakah Anda yakin ingin menolak pengajuan ini?';
-      
-    if (!confirm(confirmationText)) return;
+  const handleActionClick = (id: number, action: 'Approved' | 'Rejected') => {
+    setPendingAction({ id, action });
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmAction = async () => {
+    if (!pendingAction) return;
+    const { id, action } = pendingAction;
+    setConfirmOpen(false);
+    setPendingAction(null);
 
     try {
       const res = await fetch(`http://localhost:5000/api/permits/${id}`, {
@@ -165,13 +172,13 @@ export default function IzinAdminPage() {
                   {isPending ? (
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleAction(p.id, 'Rejected')}
-                        className="bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-bold px-3 py-1.5 rounded-lg border border-red-100 transition-all cursor-pointer"
+                        onClick={() => handleActionClick(p.id, 'Rejected')}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold px-3.5 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer"
                       >
                         Tolak
                       </button>
                       <button
-                        onClick={() => handleAction(p.id, 'Approved')}
+                        onClick={() => handleActionClick(p.id, 'Approved')}
                         className="bg-primary text-white text-[11px] font-bold px-3.5 py-1.5 rounded-lg hover:bg-primary-light transition-all shadow-sm active:scale-95 cursor-pointer"
                       >
                         Setujui
@@ -192,6 +199,24 @@ export default function IzinAdminPage() {
           })}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmOpen}
+        title={pendingAction?.action === 'Approved' ? 'Setujui Pengajuan' : 'Tolak Pengajuan'}
+        message={
+          pendingAction?.action === 'Approved'
+            ? 'Apakah Anda yakin ingin menyetujui pengajuan izin ini? Ketidakhadiran siswa akan otomatis dicatat di log Excel.'
+            : 'Apakah Anda yakin ingin menolak pengajuan ini?'
+        }
+        confirmText={pendingAction?.action === 'Approved' ? 'Setujui' : 'Tolak'}
+        cancelText="Batal"
+        confirmStyle={pendingAction?.action === 'Approved' ? 'primary' : 'danger'}
+        onConfirm={handleConfirmAction}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setPendingAction(null);
+        }}
+      />
     </div>
   );
 }

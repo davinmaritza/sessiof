@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import SessiofLogo from '@/components/SessiofLogo';
+import ConfirmModal from '@/components/ConfirmModal';
 
 interface AttendanceRecord {
   Nama: string;
@@ -24,12 +25,17 @@ export default function StudentDashboard() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [permits, setPermits] = useState<any[]>([]);
-  const [settings, setSettings] = useState({ arrivalTime: '06:30', departureTime: '15:00' });
+  const [settings, setSettings] = useState({ arrivalTime: '06:30', departureTime: '15:00', darkMode: false });
 
   // Permit Form States
   const [permitStatus, setPermitStatus] = useState<'Sakit' | 'Izin'>('Sakit');
   const [permitReason, setPermitReason] = useState('');
   const [isSubmittingPermit, setIsSubmittingPermit] = useState(false);
+
+  // Custom Alert Modal State
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
 
   useEffect(() => {
     setIsMounted(true);
@@ -63,7 +69,7 @@ export default function StudentDashboard() {
   const fetchSettings = async () => {
     try {
       const res = await fetch('/api/settings', { cache: 'no-store' });
-      if (res.ok) setSettings(await res.json());
+      if (res.ok) setSettings(prev => ({ ...prev, ...(res.json ? await res.json() : {}) }));
     } catch (error) { console.error('Error fetching settings:', error); }
   };
 
@@ -72,7 +78,6 @@ export default function StudentDashboard() {
       const res = await fetch('http://localhost:5000/api/announcements', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        // Filter for all or matches current student's class
         const filtered = data.filter((a: any) => a.class_name === 'Semua' || a.class_name === className);
         setAnnouncements(filtered);
       }
@@ -113,7 +118,9 @@ export default function StudentDashboard() {
 
       if (res.ok) {
         setPermitReason('');
-        alert('Surat izin berhasil diajukan! Menunggu persetujuan Wali Kelas.');
+        setAlertTitle('Pengajuan Berhasil');
+        setAlertMessage('Surat izin berhasil diajukan! Menunggu persetujuan Wali Kelas.');
+        setAlertOpen(true);
         fetchPermits(studentInfo.name);
       }
     } catch (err) {
@@ -138,7 +145,6 @@ export default function StudentDashboard() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Kehadiran');
     
-    // Fit column widths
     const max_len = Math.max(...dataToExport.map(r => r['Nama Siswa'].length), 15);
     worksheet['!cols'] = [
       { wch: max_len },
@@ -169,6 +175,8 @@ export default function StudentDashboard() {
     );
   }
 
+  const isDark = settings.darkMode;
+
   let tepatWaktu = 0, terlambat = 0, sakitIzin = 0, alpa = 0;
   records.forEach(r => {
     if (r.Status === 'Izin' || r.Status === 'Sakit') {
@@ -195,26 +203,47 @@ export default function StudentDashboard() {
     { label: 'Alpa', value: alpa, color: '#dc4a46' },
   ];
 
+  // Dynamic Styles based on theme
+  const bgMain = isDark 
+    ? 'linear-gradient(135deg, #0f0f1a 0%, #1a1625 40%, #0f0f1a 100%)' 
+    : 'linear-gradient(135deg, #f5f4f8 0%, #e9e7f2 40%, #f5f4f8 100%)';
+    
+  const bgPanel = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.85)';
+  const borderPanel = isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)';
+  
+  const textTitle = isDark ? 'text-white' : 'text-slate-900';
+  const textMuted = isDark ? 'text-[#8a8a9a]' : 'text-slate-500';
+  const textMutedLabel = isDark ? 'text-[#6b6b7a]' : 'text-slate-400';
+  const borderElement = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
+  const bgInner = isDark ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.03)';
+  const inputBg = isDark ? 'bg-black/40' : 'bg-white';
+  const inputBorder = isDark ? 'border-white/10' : 'border-slate-200';
+
   return (
-    <main className="min-h-screen p-4 md:p-8 antialiased relative overflow-hidden flex flex-col"
-      style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1625 40%, #0f0f1a 100%)' }}>
+    <main className="min-h-screen p-4 md:p-8 antialiased relative overflow-hidden flex flex-col transition-all duration-300"
+      style={{ background: bgMain }}>
       
+      {/* Background radial glow */}
       <div className="absolute top-[-25%] left-[-15%] w-[600px] h-[600px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(91,77,199,0.08) 0%, transparent 70%)' }} />
+        style={{ background: isDark ? 'radial-gradient(circle, rgba(91,77,199,0.08) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(91,77,199,0.05) 0%, transparent 70%)' }} />
 
       <div className="max-w-5xl w-full mx-auto space-y-6 z-10 relative flex-1">
         {/* Header */}
-        <header className="flex justify-between items-center rounded-xl p-4 animate-fade-in" 
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <header className="flex justify-between items-center rounded-xl p-4 animate-fade-in backdrop-blur-md" 
+          style={{ background: bgPanel, border: borderPanel }}>
           <div className="flex items-center gap-3">
             <SessiofLogo size={36} />
             <div>
-              <span className="font-semibold text-white text-[14px] block leading-tight">Sessiof</span>
-              <span className="text-[11px] font-medium text-[#8a8a9a]">Portal Akses Mandiri Siswa</span>
+              <span className={`font-semibold text-[14px] block leading-tight ${textTitle}`}>Sessiof</span>
+              <span className="text-[11px] font-medium text-slate-500">Portal Akses Mandiri Siswa</span>
             </div>
           </div>
-          <button onClick={handleLogout} className="text-[#8a8a9a] hover:text-white text-[13px] font-medium px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <button onClick={handleLogout} className="hover:opacity-85 text-[13px] font-bold px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer border shadow-sm"
+            style={{ 
+              background: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff', 
+              borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+              color: isDark ? '#ffffff' : '#334155'
+            }}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
             </svg>
@@ -225,25 +254,25 @@ export default function StudentDashboard() {
         {/* Profile & Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-scale-in">
           {/* Profile */}
-          <div className="rounded-xl p-5 space-y-5"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <span className="text-[10px] font-semibold text-[#6b6b7a] uppercase tracking-widest block">Identitas</span>
+          <div className="rounded-xl p-5 space-y-5 backdrop-blur-md"
+            style={{ background: bgPanel, border: borderPanel }}>
+            <span className={`text-[10px] font-bold uppercase tracking-widest block ${textMutedLabel}`}>Identitas</span>
             <div className="flex items-center gap-3.5">
               <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-semibold text-[14px]"
                 style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}>
                 {studentInfo.name.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase()}
               </div>
               <div>
-                <h2 className="font-semibold text-white text-[14px] leading-snug">{studentInfo.name}</h2>
-                <span className="text-[11px] text-[#8a8a9a] block mt-0.5 font-medium">
+                <h2 className={`font-semibold text-[14px] leading-snug ${textTitle}`}>{studentInfo.name}</h2>
+                <span className="text-[11px] block mt-0.5 font-medium text-slate-500">
                   Kelas {studentInfo.className} — Absen {studentInfo.absentNo}
                 </span>
               </div>
             </div>
-            <div className="rounded-lg p-3.5 space-y-2.5 text-[12px]" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="rounded-lg p-3.5 space-y-2.5 text-[12px] border" style={{ background: bgInner, borderColor: borderElement }}>
               {statItems.map((item, i) => (
                 <div key={i} className="flex justify-between">
-                  <span className="text-[#8a8a9a] font-medium">{item.label}</span>
+                  <span className={`${textMuted} font-medium`}>{item.label}</span>
                   <span className="font-semibold" style={{ color: item.color }}>{item.value}</span>
                 </div>
               ))}
@@ -251,39 +280,39 @@ export default function StudentDashboard() {
           </div>
 
           {/* Ring */}
-          <div className="rounded-xl p-5 flex flex-col items-center justify-center space-y-3"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <span className="text-[10px] font-semibold text-[#6b6b7a] uppercase tracking-widest">Rasio Kehadiran</span>
+          <div className="rounded-xl p-5 flex flex-col items-center justify-center space-y-3 backdrop-blur-md"
+            style={{ background: bgPanel, border: borderPanel }}>
+            <span className={`text-[10px] font-bold uppercase tracking-widest ${textMutedLabel}`}>Rasio Kehadiran</span>
             <div className="relative w-28 h-28 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                <path strokeWidth="2.8" stroke="rgba(255,255,255,0.06)" fill="none"
+                <path strokeWidth="2.8" stroke={isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)"} fill="none"
                   d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                 <path strokeWidth="2.8" strokeDasharray={`${presenceRate}, 100`} strokeLinecap="round" stroke="#5b4dc7" fill="none"
                   d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   style={{ transition: 'stroke-dasharray 0.6s ease' }} />
               </svg>
               <div className="absolute flex flex-col items-center">
-                <span className="text-[24px] font-semibold text-white">{presenceRate}%</span>
-                <span className="text-[9px] font-medium text-[#6b6b7a] uppercase tracking-widest">Hadir</span>
+                <span className={`text-[24px] font-bold ${textTitle}`}>{presenceRate}%</span>
+                <span className={`text-[9px] font-bold uppercase tracking-widest ${textMutedLabel}`}>Hadir</span>
               </div>
             </div>
-            <p className="text-[11px] text-[#6b6b7a] text-center font-medium">Total {totalLogs} hari tercatat</p>
+            <p className="text-[11px] text-slate-500 text-center font-medium">Total {totalLogs} hari tercatat</p>
           </div>
 
           {/* Grafik Kehadiran Pribadi */}
-          <div className="rounded-xl p-5 flex flex-col justify-between"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <span className="text-[10px] font-semibold text-[#6b6b7a] uppercase tracking-widest block">Distribusi Kehadiran</span>
+          <div className="rounded-xl p-5 flex flex-col justify-between backdrop-blur-md"
+            style={{ background: bgPanel, border: borderPanel }}>
+            <span className={`text-[10px] font-bold uppercase tracking-widest block ${textMutedLabel}`}>Distribusi Kehadiran</span>
             <div className="space-y-3.5 my-3">
               {statItems.map((item, i) => {
                 const percentage = totalLogs > 0 ? Math.round((item.value / totalLogs) * 100) : 0;
                 return (
                   <div key={i} className="space-y-1">
                     <div className="flex justify-between text-[11px]">
-                      <span className="text-[#8a8a9a] font-medium">{item.label} ({item.value}x)</span>
-                      <span className="font-semibold text-white">{percentage}%</span>
+                      <span className={`${textMuted} font-medium`}>{item.label} ({item.value}x)</span>
+                      <span className={`font-bold ${textTitle}`}>{percentage}%</span>
                     </div>
-                    <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-slate-200/50 dark:bg-white/5 rounded-full overflow-hidden">
                       <div 
                         className="h-full rounded-full transition-all duration-500" 
                         style={{ 
@@ -297,7 +326,7 @@ export default function StudentDashboard() {
                 );
               })}
             </div>
-            <div className="text-[10px] text-[#6b6b7a] flex justify-between items-center pt-2 border-t border-white/5">
+            <div className="text-[10px] text-slate-500 flex justify-between items-center pt-2 border-t" style={{ borderColor: borderElement }}>
               <span>Masuk: {settings.arrivalTime}</span>
               <span>Pulang: {settings.departureTime}</span>
             </div>
@@ -311,26 +340,26 @@ export default function StudentDashboard() {
           <div className="lg:col-span-7 space-y-6">
             
             {/* Announcements Widget */}
-            <div className="rounded-xl p-5 space-y-4"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div className="flex items-center gap-2 pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="rounded-xl p-5 space-y-4 backdrop-blur-md"
+              style={{ background: bgPanel, border: borderPanel }}>
+              <div className="flex items-center gap-2 pb-3 border-b" style={{ borderColor: borderElement }}>
                 <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
                 </svg>
-                <h3 className="text-[14px] font-semibold text-white">Pengumuman Kelas</h3>
+                <h3 className={`text-[14px] font-bold ${textTitle}`}>Pengumuman Kelas</h3>
               </div>
 
               {announcements.length === 0 ? (
-                <p className="text-xs text-[#6b6b7a] py-2">Belum ada pengumuman untuk kelas Anda.</p>
+                <p className="text-xs text-slate-500 py-2">Belum ada pengumuman untuk kelas Anda.</p>
               ) : (
                 <div className="space-y-3.5 max-h-56 overflow-y-auto pr-1">
                   {announcements.map((ann) => (
-                    <div key={ann.id} className="rounded-lg p-3.5 space-y-2 border border-white/5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                    <div key={ann.id} className="rounded-lg p-3.5 space-y-2 border" style={{ background: isDark ? 'rgba(255,255,255,0.02)' : '#ffffff', borderColor: borderElement }}>
                       <div className="flex justify-between items-center">
-                        <h4 className="text-xs font-bold text-white">{ann.title}</h4>
-                        <span className="text-[9px] text-[#6b6b7a]">{ann.date}</span>
+                        <h4 className={`text-xs font-extrabold ${textTitle}`}>{ann.title}</h4>
+                        <span className="text-[9px] text-slate-400">{ann.date}</span>
                       </div>
-                      <p className="text-[11px] text-[#8a8a9a] leading-relaxed whitespace-pre-line">{ann.content}</p>
+                      <p className={`text-[11px] leading-relaxed whitespace-pre-line ${textMuted}`}>{ann.content}</p>
                     </div>
                   ))}
                 </div>
@@ -338,12 +367,12 @@ export default function StudentDashboard() {
             </div>
 
             {/* Attendance Logs */}
-            <div className="rounded-xl p-5 space-y-4"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div className="flex justify-between items-center pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="rounded-xl p-5 space-y-4 backdrop-blur-md"
+              style={{ background: bgPanel, border: borderPanel }}>
+              <div className="flex justify-between items-center pb-3 border-b" style={{ borderColor: borderElement }}>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-[14px] font-semibold text-white">Riwayat Kehadiran</h3>
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ background: 'rgba(255,255,255,0.05)', color: '#8a8a9a' }}>
+                  <h3 className={`text-[14px] font-bold ${textTitle}`}>Riwayat Kehadiran</h3>
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', color: isDark ? '#8a8a9a' : '#475569' }}>
                     {records.length} Hari
                   </span>
                 </div>
@@ -360,13 +389,13 @@ export default function StudentDashboard() {
                   </button>
                 )}
               </div>
-              <div className="rounded-lg overflow-hidden max-h-72 overflow-y-auto" style={{ border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="rounded-lg overflow-hidden max-h-72 overflow-y-auto border" style={{ borderColor: borderElement }}>
                 <table className="w-full text-left text-[12px] whitespace-nowrap">
-                  <thead style={{ background: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <thead style={{ background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.02)', borderBottom: `1px solid ${borderElement}` }}>
                     <tr>
-                      <th className="py-3 px-4 text-[10px] font-semibold uppercase tracking-wider text-[#6b6b7a]">Tanggal</th>
-                      <th className="py-3 px-4 text-[10px] font-semibold uppercase tracking-wider text-[#6b6b7a]">Jam Absen</th>
-                      <th className="py-3 px-4 text-[10px] font-semibold uppercase tracking-wider text-center text-[#6b6b7a]">Status</th>
+                      <th className={`py-3 px-4 text-[10px] font-bold uppercase tracking-wider ${textMutedLabel}`}>Tanggal</th>
+                      <th className={`py-3 px-4 text-[10px] font-bold uppercase tracking-wider ${textMutedLabel}`}>Jam Absen</th>
+                      <th className={`py-3 px-4 text-[10px] font-bold uppercase tracking-wider text-center ${textMutedLabel}`}>Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -384,11 +413,11 @@ export default function StudentDashboard() {
                         : r['Waktu Absen'] && r['Waktu Absen'] > settings.arrivalTime + ":00" ? 'rgba(249,115,22,0.1)'
                         : 'rgba(16,185,129,0.1)';
                       return (
-                        <tr key={idx} className="transition-colors hover:bg-white/[0.02]" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                          <td className="py-3 px-4 font-medium" style={{ color: '#b4b4c4' }}>{r.Tanggal} {r.Bulan} {r.Tahun}</td>
-                          <td className="py-3 px-4 font-semibold text-white font-mono">{r['Waktu Absen'] || '-'}</td>
+                        <tr key={idx} className="transition-colors hover:bg-slate-550/5 dark:hover:bg-white/[0.02]" style={{ borderBottom: `1px solid ${borderElement}` }}>
+                          <td className="py-3 px-4 font-semibold text-slate-700 dark:text-zinc-350">{r.Tanggal} {r.Bulan} {r.Tahun}</td>
+                          <td className={`py-3 px-4 font-bold font-mono ${isDark ? 'text-white' : 'text-slate-800'}`}>{r['Waktu Absen'] || '-'}</td>
                           <td className="py-3 px-4 text-center">
-                            <span className="px-2.5 py-1 rounded-md text-[10px] font-semibold" style={{ background: statusBg, color: statusColor }}>
+                            <span className="px-2.5 py-1 rounded-md text-[10px] font-bold" style={{ background: statusBg, color: statusColor }}>
                               {r.Status || 'Hadir'}
                             </span>
                           </td>
@@ -396,7 +425,7 @@ export default function StudentDashboard() {
                       );
                     }) : (
                       <tr>
-                        <td colSpan={3} className="py-10 text-center text-[#6b6b7a] text-[13px]">Belum ada riwayat absensi.</td>
+                        <td colSpan={3} className="py-10 text-center text-slate-400 text-[13px] font-medium">Belum ada riwayat absensi.</td>
                       </tr>
                     )}
                   </tbody>
@@ -410,18 +439,18 @@ export default function StudentDashboard() {
           <div className="lg:col-span-5 space-y-6">
             
             {/* Form Permits */}
-            <div className="rounded-xl p-5 space-y-4"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="rounded-xl p-5 space-y-4 backdrop-blur-md"
+              style={{ background: bgPanel, border: borderPanel }}>
               <div>
-                <h3 className="text-[14px] font-semibold text-white">Formulir Sakit / Izin</h3>
-                <p className="text-[11px] text-[#6b6b7a] mt-0.5">Kirim alasan ketidakhadiran resmi ke Wali Kelas.</p>
+                <h3 className={`text-[14px] font-bold ${textTitle}`}>Formulir Sakit / Izin</h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">Kirim alasan ketidakhadiran resmi ke Wali Kelas.</p>
               </div>
 
               <form onSubmit={handlePermitSubmit} className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-[#8a8a9a] uppercase">Jenis Keterangan</label>
+                  <label className={`text-[10px] font-bold uppercase ${textMutedLabel}`}>Jenis Keterangan</label>
                   <div className="flex gap-4 pt-1">
-                    <label className="flex items-center gap-2 text-xs text-white cursor-pointer">
+                    <label className={`flex items-center gap-2 text-xs font-semibold cursor-pointer ${isDark ? 'text-white' : 'text-slate-700'}`}>
                       <input 
                         type="radio" 
                         name="status" 
@@ -432,7 +461,7 @@ export default function StudentDashboard() {
                       />
                       <span>Sakit</span>
                     </label>
-                    <label className="flex items-center gap-2 text-xs text-white cursor-pointer">
+                    <label className={`flex items-center gap-2 text-xs font-semibold cursor-pointer ${isDark ? 'text-white' : 'text-slate-700'}`}>
                       <input 
                         type="radio" 
                         name="status" 
@@ -447,20 +476,20 @@ export default function StudentDashboard() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-[#8a8a9a] uppercase">Alasan Detail</label>
+                  <label className={`text-[10px] font-bold uppercase ${textMutedLabel}`}>Alasan Detail</label>
                   <textarea
                     required
                     rows={3}
                     value={permitReason}
                     onChange={(e) => setPermitReason(e.target.value)}
                     placeholder="Tulis alasan tidak hadir sekolah..."
-                    className="w-full text-xs bg-black/40 border border-white/10 rounded-lg p-2.5 text-white focus:outline-none focus:border-primary"
+                    className={`w-full text-xs border rounded-lg p-2.5 focus:outline-none focus:border-primary font-medium ${inputBg} ${inputBorder} ${isDark ? 'text-white' : 'text-slate-800'}`}
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-[#8a8a9a] uppercase block">Dokumen Lampiran (Simulasi)</label>
-                  <div className="border border-dashed border-white/10 rounded-lg p-3 text-center text-[#6b6b7a] text-[11px] bg-white/[0.01]">
+                  <label className={`text-[10px] font-bold uppercase block ${textMutedLabel}`}>Dokumen Lampiran (Simulasi)</label>
+                  <div className={`border border-dashed rounded-lg p-3 text-center text-slate-500 text-[11px] ${isDark ? 'bg-white/[0.01] border-white/10' : 'bg-slate-50 border-slate-200'}`}>
                     📎 surat_keterangan.pdf (Terpilih secara default)
                   </div>
                 </div>
@@ -468,7 +497,7 @@ export default function StudentDashboard() {
                 <button
                   type="submit"
                   disabled={isSubmittingPermit}
-                  className="w-full text-white text-[12px] font-bold py-2.5 rounded-lg transition-all active:scale-[0.98] cursor-pointer"
+                  className="w-full text-white text-[12px] font-bold py-2.5 rounded-lg transition-all active:scale-[0.98] cursor-pointer shadow-md"
                   style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}
                 >
                   {isSubmittingPermit ? 'Mengirim...' : 'Kirim Pengajuan'}
@@ -477,12 +506,12 @@ export default function StudentDashboard() {
             </div>
 
             {/* List Permits Submitted */}
-            <div className="rounded-xl p-5 space-y-4"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <h3 className="text-[13px] font-semibold text-white">Status Pengajuan Izin</h3>
+            <div className="rounded-xl p-5 space-y-4 backdrop-blur-md"
+              style={{ background: bgPanel, border: borderPanel }}>
+              <h3 className={`text-[13px] font-bold ${textTitle}`}>Status Pengajuan Izin</h3>
               
               {permits.length === 0 ? (
-                <p className="text-[11px] text-[#6b6b7a]">Belum ada pengajuan izin/sakit.</p>
+                <p className="text-[11px] text-slate-400 font-medium">Belum ada pengajuan izin/sakit.</p>
               ) : (
                 <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
                   {permits.map((p) => {
@@ -492,14 +521,14 @@ export default function StudentDashboard() {
                     const badgeBg = isApproved ? 'rgba(45,157,120,0.1)' : isPending ? 'rgba(217,119,6,0.1)' : 'rgba(220,74,70,0.1)';
 
                     return (
-                      <div key={p.id} className="border border-white/5 rounded-lg p-3 text-[11px] space-y-2 bg-white/[0.01]">
+                      <div key={p.id} className="border rounded-lg p-3 text-[11px] space-y-2" style={{ background: isDark ? 'rgba(255,255,255,0.01)' : '#ffffff', borderColor: borderElement }}>
                         <div className="flex justify-between items-center">
-                          <span className="font-semibold text-white">[{p.status}] {p.date_submitted.split(' ')[0]}</span>
+                          <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>[{p.status}] {p.date_submitted.split(' ')[0]}</span>
                           <span className="px-2 py-0.5 rounded-md font-bold text-[9px]" style={{ color: badgeColor, background: badgeBg }}>
                             {p.is_approved}
                           </span>
                         </div>
-                        <p className="text-[#8a8a9a] leading-snug">Alasan: "{p.reason}"</p>
+                        <p className={`${textMuted} leading-snug font-medium`}>Alasan: "{p.reason}"</p>
                       </div>
                     );
                   })}
@@ -513,11 +542,23 @@ export default function StudentDashboard() {
 
       </div>
 
-      <footer className="max-w-5xl w-full mx-auto px-4 py-5 flex justify-between items-center text-[11px] text-[#4a4a5a] font-medium z-10 relative mt-4"
-        style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+      <footer className="max-w-5xl w-full mx-auto px-4 py-5 flex justify-between items-center text-[11px] font-medium z-10 relative mt-4 text-slate-400"
+        style={{ borderTop: `1px solid ${borderElement}` }}>
         <span>&copy; {new Date().getFullYear()} Sessiof</span>
         <span>Portal Akses Mandiri Siswa</span>
       </footer>
+
+      {/* Local Alert Modal replacement for browser alert */}
+      <ConfirmModal
+        isOpen={alertOpen}
+        title={alertTitle}
+        message={alertMessage}
+        confirmText="OK"
+        cancelText="Batal"
+        confirmStyle="primary"
+        onConfirm={() => setAlertOpen(false)}
+        onCancel={() => setAlertOpen(false)}
+      />
     </main>
   );
 }

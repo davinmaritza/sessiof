@@ -122,7 +122,7 @@ export default function RosterPage() {
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStudentName.trim() || !newStudentClass.trim() || !newStudentAbsentNo.trim()) {
-      alert('Semua kolom data siswa harus diisi!');
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Semua kolom data siswa harus diisi!', type: 'error' } }));
       return;
     }
     setActionStatus('Menambahkan siswa...');
@@ -156,7 +156,7 @@ export default function RosterPage() {
     e.preventDefault();
     if (!selectedStudent) return;
     if (!editName.trim() || !editClass.trim() || !editAbsentNo.trim()) {
-      alert('Semua kolom profil harus diisi!');
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Semua kolom profil harus diisi!', type: 'error' } }));
       return;
     }
 
@@ -188,7 +188,7 @@ export default function RosterPage() {
     e.preventDefault();
     if (!selectedStudent) return;
     if (!editUsername.trim() || !editPassword.trim()) {
-      alert('Username dan password baru tidak boleh kosong!');
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Username dan password baru tidak boleh kosong!', type: 'error' } }));
       return;
     }
     setActionStatus('Memperbarui kredensial login...');
@@ -265,7 +265,7 @@ export default function RosterPage() {
 
   const handleUploadFace = async (name: string) => {
     if (!uploadFile) {
-      alert('Pilih file gambar wajah terlebih dahulu');
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Pilih file gambar wajah terlebih dahulu', type: 'error' } }));
       return;
     }
 

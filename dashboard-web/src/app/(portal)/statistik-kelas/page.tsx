@@ -225,7 +225,7 @@ export default function StatistikKelasPage() {
   // PDF Generation Function
   const handleDownloadPDF = () => {
     if (selectedClass === 'Semua') {
-      alert('Silakan pilih salah satu kelas spesifik terlebih dahulu untuk mencetak laporan bulanan!');
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Silakan pilih salah satu kelas spesifik terlebih dahulu untuk mencetak laporan bulanan!', type: 'error' } }));
       return;
     }
 
@@ -331,7 +331,7 @@ export default function StatistikKelasPage() {
   // Excel Generation Function
   const handleDownloadExcel = () => {
     if (selectedClass === 'Semua') {
-      alert('Silakan pilih salah satu kelas spesifik terlebih dahulu untuk mencetak laporan bulanan!');
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Silakan pilih salah satu kelas spesifik terlebih dahulu untuk mencetak laporan bulanan!', type: 'error' } }));
       return;
     }
 
@@ -365,6 +365,122 @@ export default function StatistikKelasPage() {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Laporan Presensi Kelas');
     
     XLSX.writeFile(workbook, `Laporan_Absensi_${selectedClass}_${selectedMonth}_${selectedYear}.xlsx`);
+  };
+
+  const handleDownloadAllClassesPDF = () => {
+    const allClasses = classes.map(c => c.name).filter(name => name !== 'Semua');
+    if (allClasses.length === 0) {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Tidak ada data kelas untuk diekspor!', type: 'error' } }));
+      return;
+    }
+
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    allClasses.forEach((clsName, pageIdx) => {
+      if (pageIdx > 0) doc.addPage();
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('LAPORAN RINGKASAN PRESENSI KEHADIRAN SISWA', 105, 20, { align: 'center' });
+      
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text('Sistem Presensi Wajah Pintar — Sessiof', 105, 25, { align: 'center' });
+      
+      doc.setDrawColor(180, 180, 180);
+      doc.setLineWidth(0.5);
+      doc.line(15, 28, 195, 28);
+
+      const classStudents = students.filter(s => s.class_name === clsName);
+      
+      const classStats = classStudents.map(student => {
+        let hadir = 0, terlambat = 0, sakit = 0, izin = 0, alpa = 0;
+        
+        schoolDays.forEach(day => {
+          const dayRecord = monthlyRecords.find(r => 
+            r.Nama.trim().toLowerCase() === student.name.trim().toLowerCase() && 
+            String(r.Tanggal) === day
+          );
+          if (dayRecord) {
+            const status = dayRecord.Status || 'Hadir';
+            if (status === 'Sakit') sakit++;
+            else if (status === 'Izin') izin++;
+            else if (status === 'Alpa') alpa++;
+            else {
+              hadir++;
+              const time = dayRecord['Waktu Absen'];
+              if (time && time !== '-' && time > settings.arrivalTime + ':00') terlambat++;
+            }
+          } else {
+            alpa++;
+          }
+        });
+
+        const totalDays = schoolDays.length;
+        const rate = totalDays > 0 ? Math.round(((hadir - (alpa * 0.5)) / totalDays) * 100) : 100;
+        const finalRate = Math.max(0, Math.min(100, rate));
+
+        return { ...student, hadir, terlambat, sakit, izin, alpa, rate: finalRate };
+      }).sort((a, b) => parseInt(a.absent_no) - parseInt(b.absent_no));
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text(`Kelas: ${clsName}`, 15, 36);
+      doc.text(`Bulan: ${selectedMonth} ${selectedYear}`, 15, 41);
+      doc.text(`Hari Efektif: ${schoolDays.length} Hari`, 15, 46);
+
+      const todayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      doc.setFont('Helvetica', 'normal');
+      doc.text(`Tanggal Cetak: ${todayStr}`, 140, 36);
+
+      const tableHeaders = [['No', 'No Absen', 'Nama Siswa', 'Hadir', 'Terlambat', 'Sakit/Izin', 'Alpa', 'Rasio (%)']];
+      const tableRows = classStats.map((s, idx) => [
+        idx + 1,
+        s.absent_no,
+        s.name,
+        s.hadir - s.terlambat,
+        s.terlambat,
+        s.sakit + s.izin,
+        s.alpa,
+        `${s.rate}%`
+      ]);
+
+      autoTable(doc, {
+        startY: 52,
+        head: tableHeaders,
+        body: tableRows,
+        theme: 'grid',
+        headStyles: { fillColor: [91, 77, 199] },
+        styles: { fontSize: 8, cellPadding: 2.5 },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 15, halign: 'center' },
+          2: { cellWidth: 65 },
+          3: { cellWidth: 15, halign: 'center' },
+          4: { cellWidth: 18, halign: 'center' },
+          5: { cellWidth: 20, halign: 'center' },
+          6: { cellWidth: 15, halign: 'center' },
+          7: { cellWidth: 18, halign: 'center' }
+        }
+      });
+
+      const finalY = (doc as any).lastAutoTable.finalY || 100;
+      const sigY = Math.min(235, finalY + 12);
+      
+      doc.setFontSize(9);
+      doc.text('Kepala Sekolah', 30, sigY + 5);
+      doc.text('( ______________________ )', 30, sigY + 25);
+      
+      doc.text('Wali Kelas', 140, sigY + 5);
+      doc.text('( ______________________ )', 140, sigY + 25);
+    });
+
+    doc.save(`Laporan_Rekap_Semua_Kelas_${selectedMonth}_${selectedYear}.pdf`);
+    window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Laporan PDF semua kelas berhasil diunduh!', type: 'success' } }));
   };
 
   return (
@@ -656,6 +772,21 @@ export default function StatistikKelasPage() {
             </div>
             
             <div className="flex flex-wrap gap-3 w-full sm:w-auto justify-center">
+              {/* PDF All Classes Button */}
+              {selectedClass === 'Semua' && (
+                <button
+                  onClick={handleDownloadAllClassesPDF}
+                  disabled={classes.filter(c => c.name !== 'Semua').length === 0}
+                  className="w-full sm:w-auto bg-purple-650 hover:bg-purple-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer border border-purple-700/10"
+                  style={{ backgroundColor: 'var(--primary)' }}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                  <span>Cetak Laporan Semua Kelas</span>
+                </button>
+              )}
+
               {/* PDF Button */}
               <button
                 onClick={handleDownloadPDF}

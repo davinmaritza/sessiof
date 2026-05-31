@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import ConfirmModal from '@/components/ConfirmModal';
 
 interface Announcement {
   id: number;
@@ -18,6 +19,8 @@ export default function PengumumanAdminPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [title, setTitle] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
   const [content, setContent] = useState('');
   const [selectedClass, setSelectedClass] = useState('Semua');
   const [isLoading, setIsLoading] = useState(true);
@@ -78,7 +81,7 @@ export default function PengumumanAdminPage() {
         window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Pengumuman berhasil diposting!', type: 'success' } }));
         fetchAnnouncements();
       } else {
-        alert('Gagal memposting pengumuman.');
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Gagal memposting pengumuman.', type: 'error' } }));
       }
     } catch (error) {
       console.error('Error posting announcement:', error);
@@ -87,16 +90,24 @@ export default function PengumumanAdminPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus pengumuman ini?')) return;
+  const handleDeleteClick = (id: number) => {
+    setDeleteId(id);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteId === null) return;
+    setConfirmOpen(false);
     try {
-      const res = await fetch(`http://localhost:5000/api/announcements/${id}`, { method: 'DELETE' });
+      const res = await fetch(`http://localhost:5000/api/announcements/${deleteId}`, { method: 'DELETE' });
       if (res.ok) {
         window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Pengumuman berhasil dihapus.', type: 'success' } }));
         fetchAnnouncements();
       }
     } catch (e) {
       console.error('Gagal menghapus:', e);
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -205,7 +216,7 @@ export default function PengumumanAdminPage() {
                     </div>
 
                     <button
-                      onClick={() => handleDelete(ann.id)}
+                      onClick={() => handleDeleteClick(ann.id)}
                       className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
                       title="Hapus Pengumuman"
                     >
@@ -224,6 +235,20 @@ export default function PengumumanAdminPage() {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={confirmOpen}
+        title="Hapus Pengumuman"
+        message="Apakah Anda yakin ingin menghapus pengumuman ini? Tindakan ini tidak dapat dibatalkan."
+        confirmText="Hapus"
+        cancelText="Batal"
+        confirmStyle="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setDeleteId(null);
+        }}
+      />
     </div>
   );
 }

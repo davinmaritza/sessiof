@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import AttendanceHeatmap from '@/components/AttendanceHeatmap';
+import ConfirmModal from '@/components/ConfirmModal';
 
 interface Student {
   name: string;
@@ -60,6 +61,8 @@ export default function DashboardPage() {
   const [userRole, setUserRole] = useState('admin');
   const [userName, setUserName] = useState('Administrator');
   const [userClass, setUserClass] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   const getCurrentWeekDates = () => {
     const today = new Date();
@@ -112,14 +115,22 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDeleteEvent = async (id: number, e: React.MouseEvent) => {
+  const handleDeleteEvent = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Hapus agenda ini?')) return;
+    setPendingDeleteId(id);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (pendingDeleteId === null) return;
+    setConfirmOpen(false);
     try {
-      const res = await fetch(`/api/agenda?id=${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/agenda?id=${pendingDeleteId}`, { method: 'DELETE' });
       if (res.ok) fetchAgenda();
     } catch (err) {
       console.error('Error deleting event:', err);
+    } finally {
+      setPendingDeleteId(null);
     }
   };
 
@@ -264,6 +275,34 @@ export default function DashboardPage() {
     return monthlyCounts;
   };
   const chartData = getMonthlyData();
+
+  // Calculate frequently absent students (Sering Alpa >= 3)
+  const getFrequentlyAbsentStudents = () => {
+    const alpaMap: { [name: string]: { count: number, class: string } } = {};
+    
+    if (serverStatus.students) {
+      serverStatus.students.forEach(s => {
+        alpaMap[s.name] = { count: 0, class: s.class_name };
+      });
+    }
+
+    records.forEach(r => {
+      if (r.Status === 'Alpa' && r.Nama) {
+        if (alpaMap[r.Nama]) {
+          alpaMap[r.Nama].count++;
+        } else {
+          alpaMap[r.Nama] = { count: 1, class: r.Kelas || '-' };
+        }
+      }
+    });
+
+    return Object.entries(alpaMap)
+      .map(([name, data]) => ({ name, count: data.count, class_name: data.class }))
+      .filter(s => s.count >= 3)
+      .sort((a, b) => b.count - a.count);
+  };
+
+  const absentAlerts = getFrequentlyAbsentStudents();
   const generatePath = (data: number[]) => {
     const max = Math.max(...data, 10);
     return data.map((d, i) => {
@@ -349,6 +388,41 @@ export default function DashboardPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
+          </div>
+        )}
+
+        {/* Warning Siswa Sering Alpa */}
+        {absentAlerts.length > 0 && (
+          <div className="rounded-xl p-5 animate-slide-up bg-red-50/80 dark:bg-red-500/5 border border-red-150 dark:border-red-500/20">
+            <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-bold text-sm mb-3">
+              <svg className="w-5 h-5 shrink-0 animate-bounce" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span>🚨 Siaga Siswa Sering Alpa (&ge; 3 Kali Alpa)</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {absentAlerts.map((student, i) => (
+                <div key={i} className="bg-white dark:bg-zinc-900 border border-red-100 dark:border-red-500/10 rounded-xl p-3.5 flex flex-col justify-between shadow-sm">
+                  <div>
+                    <span className="font-bold text-xs text-slate-800 dark:text-white block">{student.name}</span>
+                    <span className="text-[10px] text-slate-500 dark:text-zinc-400 block mt-0.5">Kelas {student.class_name}</span>
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-50 dark:border-zinc-800">
+                    <span className="text-[11px] font-extrabold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 px-2 py-0.5 rounded-md">
+                      {student.count}x Alpa
+                    </span>
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(`Yth. Wali Murid dari ${student.name}, kami menginfokan bahwa siswa ybs telah terakumulasi absen Alpa sebanyak ${student.count} kali bulan ini. Mohon perhatiannya.`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] font-bold text-white bg-emerald-500 hover:bg-emerald-600 px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+                    >
+                      💬 Kirim WA
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -609,6 +683,20 @@ export default function DashboardPage() {
       <div className="px-6 md:px-8 pb-6">
         <AttendanceHeatmap records={records} />
       </div>
+
+      <ConfirmModal
+        isOpen={confirmOpen}
+        title="Hapus Agenda"
+        message="Apakah Anda yakin ingin menghapus agenda akademik ini?"
+        confirmText="Hapus"
+        cancelText="Batal"
+        confirmStyle="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setPendingDeleteId(null);
+        }}
+      />
     </div>
   );
 }

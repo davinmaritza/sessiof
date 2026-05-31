@@ -51,6 +51,320 @@ def add_api_headers(response):
     response.headers['X-Powered-By']  = 'Sessiof'
     return response
 
+# ── Audit Log System ──────────────────────────────────
+AUDIT_LOG_FILE = "audit_logs.json"
+
+def log_audit(action, user, details=""):
+    try:
+        logs = []
+        if os.path.exists(AUDIT_LOG_FILE):
+            with open(AUDIT_LOG_FILE, 'r') as f:
+                logs = json.load(f)
+        
+        # Get IP address from flask request context if available
+        ip = "127.0.0.1"
+        try:
+            if request:
+                if request.headers.getlist("X-Forwarded-For"):
+                    ip = request.headers.getlist("X-Forwarded-For")[0]
+                else:
+                    ip = request.remote_addr
+        except Exception:
+            pass
+
+        new_log = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "action": action,
+            "user": user,
+            "ip": ip,
+            "details": details
+        }
+        logs.insert(0, new_log)
+        # Limit to 300 logs
+        logs = logs[:300]
+        with open(AUDIT_LOG_FILE, 'w') as f:
+            json.dump(logs, f, indent=4)
+    except Exception as e:
+        print(f"Error logging audit: {e}")
+
+@app.route('/api/audit-logs', methods=['GET'])
+def get_audit_logs():
+    logs = []
+    if os.path.exists(AUDIT_LOG_FILE):
+        try:
+            with open(AUDIT_LOG_FILE, 'r') as f:
+                logs = json.load(f)
+        except Exception:
+            pass
+    return jsonify(logs)
+
+@app.route('/api/audit-logs/clear', methods=['POST'])
+def clear_audit_logs():
+    data = request.json or {}
+    user = data.get("user", "Admin")
+    try:
+        with open(AUDIT_LOG_FILE, 'w') as f:
+            json.dump([], f, indent=4)
+        log_audit("Clear Audit Log", user, "Mengosongkan riwayat log audit")
+        return jsonify({"success": True, "message": "Log audit berhasil dikosongkan."})
+    except Exception as e:
+        return jsonify({"error": f"Gagal mengosongkan log audit: {e}"}), 500
+
+@app.route('/api/test-webhook', methods=['POST'])
+def test_webhook():
+    data = request.json or {}
+    webhook_url = data.get("webhookUrl", "").strip()
+    if not webhook_url:
+        return jsonify({"error": "URL Webhook tidak boleh kosong!"}), 400
+    
+    test_payload = {
+        "event": "webhook_test",
+        "timestamp": datetime.now().isoformat(),
+        "message": "Ini adalah pesan uji coba integrasi webhook dari Sessiof.",
+        "data": {
+            "name": "Siswa Uji Coba",
+            "class_name": "XII-RPL",
+            "absent_no": "99",
+            "day": datetime.now().strftime("%A"),
+            "date": datetime.now().strftime("%d %B %Y"),
+            "time": datetime.now().strftime("%H:%M:%S"),
+            "status": "Hadir"
+        }
+    }
+    
+    try:
+        res = requests.post(webhook_url, json=test_payload, timeout=5)
+        if 200 <= res.status_code < 300:
+            return jsonify({"success": True, "message": f"Webhook berhasil terkirim! Status: {res.status_code}"})
+        else:
+            return jsonify({"error": f"Server webhook merespon dengan status: {res.status_code}"}), 400
+    except Exception as e:
+        return jsonify({"error": f"Koneksi gagal: {str(e)}"}), 500
+
+# ── Root route status dashboard ───────────────────────
+@app.route('/', methods=['GET'])
+def index():
+    local_ip = get_local_ip()
+    year = datetime.now().year
+    html_content = f"""<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sessiof API Status</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <style>
+        :root {{
+            --bg: #0b0a12;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.07);
+            --primary: #7c6fe0;
+            --primary-glow: rgba(124, 111, 224, 0.4);
+            --text: #e0e0e6;
+            --text-muted: #888896;
+            --success: #10b981;
+        }}
+        body {{
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }}
+        .glow {{
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            pointer-events: none;
+            opacity: 0.25;
+            z-index: 1;
+        }}
+        .glow-1 {{
+            background: var(--primary);
+            width: 400px;
+            height: 400px;
+            top: -100px;
+            left: -100px;
+        }}
+        .glow-2 {{
+            background: #5b4dc7;
+            width: 500px;
+            height: 500px;
+            bottom: -150px;
+            right: -100px;
+        }}
+        .container {{
+            position: relative;
+            z-index: 10;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 40px;
+            width: 90%;
+            max-width: 480px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            text-align: center;
+        }}
+        .logo-container {{
+            display: flex;
+            justify-content: center;
+            margin-bottom: 24px;
+        }}
+        .logo-circle {{
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, #5b4dc7, #7c6fe0);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 24px var(--primary-glow);
+        }}
+        h1 {{
+            font-size: 24px;
+            font-weight: 800;
+            margin: 0 0 8px 0;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #fff, #b4b4c4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }}
+        .subtitle {{
+            font-size: 13px;
+            color: var(--text-muted);
+            margin: 0 0 32px 0;
+            font-weight: 500;
+        }}
+        .status-badge {{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.15);
+            color: var(--success);
+            font-size: 12px;
+            font-weight: 700;
+            padding: 6px 14px;
+            border-radius: 9999px;
+            margin-bottom: 32px;
+            letter-spacing: 0.5px;
+        }}
+        .status-dot {{
+            width: 6px;
+            height: 6px;
+            background-color: var(--success);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--success);
+            animation: pulse 2s infinite;
+        }}
+        @keyframes pulse {{
+            0% {{ transform: scale(0.9); opacity: 0.6; }}
+            50% {{ transform: scale(1.1); opacity: 1; box-shadow: 0 0 12px var(--success); }}
+            100% {{ transform: scale(0.9); opacity: 0.6; }}
+        }}
+        .info-group {{
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            text-align: left;
+            margin-bottom: 16px;
+        }}
+        .info-row {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255,255,255,0.01);
+            border: 1px solid rgba(255,255,255,0.03);
+            padding: 12px 18px;
+            border-radius: 12px;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }}
+        .info-row:hover {{
+            background: rgba(255,255,255,0.03);
+            border-color: rgba(255,255,255,0.08);
+        }}
+        .info-label {{
+            color: var(--text-muted);
+            font-weight: 500;
+        }}
+        .info-value {{
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            color: var(--text);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }}
+        a.info-value {{
+            color: var(--primary);
+        }}
+        a.info-value:hover {{
+            text-decoration: underline;
+        }}
+        .footer {{
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 32px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+    <div class="container">
+        <div class="logo-container">
+            <div class="logo-circle">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+                    <path d="M12 6v6l4 2"/>
+                </svg>
+            </div>
+        </div>
+        <h1>{APP_NAME} Server</h1>
+        <p class="subtitle">Face Attendance System — Python Backend</p>
+        
+        <div class="status-badge">
+            <span class="status-dot"></span>
+            Running ({API_VERSION})
+        </div>
+        
+        <div class="info-group">
+            <div class="info-row">
+                <span class="info-label">Status</span>
+                <span class="info-value" style="color: var(--success); font-weight: bold;">Active</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Local URL</span>
+                <a href="http://127.0.0.1:{PORT}" class="info-value">http://127.0.0.1:{PORT}</a>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Network URL</span>
+                <a href="http://{local_ip}:{PORT}" class="info-value">http://{local_ip}:{PORT}</a>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Health Check</span>
+                <a href="http://127.0.0.1:{PORT}/api/health" class="info-value">/api/health</a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            &copy; {year} Sessiof. Powered by OpenCV & Flask.
+        </div>
+    </div>
+</body>
+</html>"""
+    return Response(html_content, mimetype='text/html')
+
 # ── Health check / root endpoint ──────────────────────
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -235,18 +549,43 @@ def log_attendance(name):
         print(f"Gagal mencatat absensi ke Excel: {e}")
         return False
         
-    if GOOGLE_SHEETS_WEBHOOK_URL and not sudah_absen_hari_ini:
-        payload = {
-            "nama": name, "kelas": kelas, "no_absen": no_absen,
-            "hari": hari_ini, "tanggal": tanggal, 
-            "bulan": bulan, "tahun": tahun, "waktu": waktu, "status": status
-        }
-        try:
-            requests.post(GOOGLE_SHEETS_WEBHOOK_URL, json=payload, timeout=5)
-        except Exception:
-            pass
-            
     if not sudah_absen_hari_ini:
+        settings = load_settings()
+        
+        # Google Sheets Webhook
+        if GOOGLE_SHEETS_WEBHOOK_URL:
+            payload = {
+                "nama": name, "kelas": kelas, "no_absen": no_absen,
+                "hari": hari_ini, "tanggal": tanggal, 
+                "bulan": bulan, "tahun": tahun, "waktu": waktu, "status": status
+            }
+            try:
+                requests.post(GOOGLE_SHEETS_WEBHOOK_URL, json=payload, timeout=5)
+            except Exception:
+                pass
+                
+        # Custom Webhook Integration
+        if settings.get("webhookEnabled", False) and settings.get("webhookUrl"):
+            webhook_url = settings.get("webhookUrl")
+            webhook_payload = {
+                "event": "attendance_recorded",
+                "timestamp": datetime.now().isoformat(),
+                "data": {
+                    "name": name,
+                    "class_name": kelas,
+                    "absent_no": no_absen,
+                    "day": hari_ini,
+                    "date": f"{tanggal} {bulan} {tahun}",
+                    "time": waktu,
+                    "status": status
+                }
+            }
+            def send_webhook_bg(url, payload):
+                try:
+                    requests.post(url, json=payload, timeout=5)
+                except Exception as e:
+                    print(f"Failed to send webhook: {e}")
+            threading.Thread(target=send_webhook_bg, args=(webhook_url, webhook_payload), daemon=True).start()
         settings = load_settings()
         if settings.get("whatsappNotificationsEnabled", True):
             logs_file = "whatsapp_logs.json"
@@ -533,6 +872,7 @@ def add_student():
         "password": "12345"
     }
     save_metadata(metadata)
+    log_audit("Tambah Siswa", "Admin/Guru", f"Nama: {name}, Kelas: {class_name}, No Absen: {absent_no}")
     
     return jsonify({"message": f"Siswa '{name}' ({class_name}) berhasil didaftarkan."})
 
@@ -583,6 +923,7 @@ def update_credentials(name):
     metadata[name]["username"] = new_username
     metadata[name]["password"] = new_password
     save_metadata(metadata)
+    log_audit("Reset Password Siswa", "Admin/Guru", f"Siswa: {name}, Username: {new_username}")
     
     return jsonify({"message": f"Kredensial login untuk siswa '{name}' berhasil diperbarui."})
 
@@ -632,6 +973,7 @@ def edit_student(name):
         "password": password
     }
     save_metadata(metadata)
+    log_audit("Edit Siswa", "Admin/Guru", f"Mengedit data siswa '{name}' menjadi '{new_name}' (Kelas: {class_name})")
     
     return jsonify({"message": f"Data profil siswa '{new_name}' berhasil diperbarui."})
 
@@ -653,6 +995,7 @@ def delete_student(name):
     
     del metadata[name]
     save_metadata(metadata)
+    log_audit("Hapus Siswa", "Admin/Guru", f"Menghapus siswa '{name}' (Kelas: {class_name}, Absen: {absent_no})")
     
     # Rebuild embeddings model to remove deleted student's templates
     try:
@@ -1437,6 +1780,7 @@ def unified_login():
     password = data.get("password", "").strip()
     
     if not username or not password:
+        log_audit("Login Gagal", "system", "Upaya login dengan field kosong")
         return jsonify({"error": "Username dan password wajib diisi!"}), 400
         
     init_users_db()
@@ -1449,6 +1793,7 @@ def unified_login():
                 users = json.load(f)
             for u in users:
                 if u.get("username", "").lower() == username and u.get("password") == password:
+                    log_audit("Login Berhasil", u.get("username"), f"Role: {u.get('role', 'guru')}")
                     return jsonify({
                         "success": True,
                         "username": u.get("username"),
@@ -1466,6 +1811,7 @@ def unified_login():
         curr_pass = str(info.get("password", "12345"))
         
         if curr_user == username and curr_pass == password:
+            log_audit("Login Siswa Berhasil", curr_user, f"Nama: {student_name}")
             return jsonify({
                 "success": True,
                 "username": curr_user,
@@ -1475,6 +1821,7 @@ def unified_login():
                 "absent_no": info.get("absent_no", "-")
             })
             
+    log_audit("Login Gagal", username, "Upaya login gagal dengan kredensial salah")
     return jsonify({"error": "Username atau password salah!"}), 401
 
 @app.route('/api/change-password', methods=['POST'])
@@ -1499,10 +1846,12 @@ def change_password():
         for u in users:
             if u.get("username", "").lower() == username:
                 if u.get("password") != old_password:
+                    log_audit("Ganti Password Gagal", username, "Password lama tidak sesuai")
                     return jsonify({"error": "Password lama tidak sesuai!"}), 401
                 u["password"] = new_password
                 with open(users_file, 'w') as f:
                     json.dump(users, f, indent=4)
+                log_audit("Ganti Password Berhasil", username, "Mengubah password akun admin/guru")
                 return jsonify({"success": True, "message": "Password berhasil diperbarui!"})
     except Exception:
         pass
@@ -1513,11 +1862,14 @@ def change_password():
         curr_user = info.get("username", student_name.lower().replace(" ", "")).lower()
         if curr_user == username:
             if str(info.get("password", "12345")) != old_password:
+                log_audit("Ganti Password Gagal", username, "Password lama tidak sesuai")
                 return jsonify({"error": "Password lama tidak sesuai!"}), 401
             metadata[student_name]["password"] = new_password
             save_metadata(metadata)
+            log_audit("Ganti Password Berhasil", username, f"Mengubah password mandiri siswa: {student_name}")
             return jsonify({"success": True, "message": "Password berhasil diperbarui!"})
 
+    log_audit("Ganti Password Gagal", username, "Akun tidak ditemukan")
     return jsonify({"error": "Akun tidak ditemukan!"}), 404
 
 
@@ -1560,6 +1912,8 @@ def handle_users():
                 json.dump(users, f, indent=4)
         except Exception as e:
             return jsonify({"error": f"Gagal menyimpan user baru: {e}"}), 500
+        
+        log_audit("Tambah User", "Admin", f"Menambahkan user '{username}' (Role: {role}, Nama: {name})")
         return jsonify(new_user)
     else: # GET
         try:
@@ -1585,6 +1939,7 @@ def manage_user_endpoint(username):
             users = [u for u in users if u.get("username", "").lower() != username]
             with open(users_file, 'w') as f:
                 json.dump(users, f, indent=4)
+            log_audit("Hapus User", "Admin", f"Menghapus akun user: {username}")
             return jsonify({"success": True})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
@@ -1622,6 +1977,7 @@ def manage_user_endpoint(username):
                 
             with open(users_file, 'w') as f:
                 json.dump(users, f, indent=4)
+            log_audit("Edit User", "Admin", f"Memperbarui akun user '{username}' (Nama: {name}, Role: {role})")
             return jsonify({"success": True})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
@@ -1670,18 +2026,18 @@ if __name__ == '__main__':
     RESET  = '\033[0m'
     
     print()
-    print(f"  {PURPLE}{BOLD}╔══════════════════════════════════════════╗{RESET}")
-    print(f"  {PURPLE}{BOLD}║  {CYAN}⬡  Sessiof API Server                  {PURPLE}║{RESET}")
-    print(f"  {PURPLE}{BOLD}║  {DIM}Face Attendance System — Backend        {PURPLE}{BOLD}║{RESET}")
-    print(f"  {PURPLE}{BOLD}╚══════════════════════════════════════════╝{RESET}")
+    print(f"  {PURPLE}{BOLD}+------------------------------------------+{RESET}")
+    print(f"  {PURPLE}{BOLD}|  {CYAN}*  Sessiof API Server                  {PURPLE}|{RESET}")
+    print(f"  {PURPLE}{BOLD}|  {DIM}Face Attendance System - Backend        {PURPLE}{BOLD}|{RESET}")
+    print(f"  {PURPLE}{BOLD}+------------------------------------------+{RESET}")
     print()
-    print(f"  {GREEN}▶  Status   {RESET}Running ({API_VERSION})")
-    print(f"  {GREEN}▶  Local    {RESET}http://127.0.0.1:{PORT}")
-    print(f"  {GREEN}▶  Network  {RESET}http://{local_ip}:{PORT}")
-    print(f"  {GREEN}▶  Health   {RESET}http://127.0.0.1:{PORT}/api/health")
+    print(f"  {GREEN}*  Status   {RESET}Running ({API_VERSION})")
+    print(f"  {GREEN}*  Local    {RESET}http://127.0.0.1:{PORT}")
+    print(f"  {GREEN}*  Network  {RESET}http://{local_ip}:{PORT}")
+    print(f"  {GREEN}*  Health   {RESET}http://127.0.0.1:{PORT}/api/health")
     print()
     print(f"  {DIM}Press CTRL+C to stop the server{RESET}")
-    print(f"  {'─' * 44}")
+    print(f"  {'--' * 22}")
     print()
     
     app.run(host='0.0.0.0', port=PORT, debug=False)
