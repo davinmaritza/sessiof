@@ -69,7 +69,10 @@ export default function StudentDashboard() {
   const fetchSettings = async () => {
     try {
       const res = await fetch('/api/settings', { cache: 'no-store' });
-      if (res.ok) setSettings(prev => ({ ...prev, ...(res.json ? await res.json() : {}) }));
+      if (res.ok) {
+        const data = await res.json();
+        setSettings(prev => ({ ...prev, ...data }));
+      }
     } catch (error) { console.error('Error fetching settings:', error); }
   };
 

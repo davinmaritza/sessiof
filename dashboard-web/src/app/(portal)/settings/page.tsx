@@ -60,7 +60,7 @@ export default function SettingsPage() {
         // Log audit for updating settings
         const adminName = localStorage.getItem('sessiof_user_name') || 'Admin';
         await fetch('http://localhost:5000/api/audit-logs', {
-          method: 'GET' # Just refresh logs after save
+          method: 'GET' // Just refresh logs after save
         });
         
         setTimeout(() => setStatus(''), 3000);

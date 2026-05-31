@@ -1719,6 +1719,33 @@ def approve_permit(permit_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/permits', methods=['DELETE'])
+def delete_permits():
+    permits_file = "permits.json"
+    if not os.path.exists(permits_file):
+        return jsonify({"error": "Data izin tidak ditemukan"}), 404
+        
+    data = request.json or {}
+    permit_ids = data.get("ids", [])
+    if not isinstance(permit_ids, list):
+        return jsonify({"error": "Format parameter ids tidak valid"}), 400
+        
+    try:
+        with open(permits_file, 'r') as f:
+            permits = json.load(f)
+            
+        initial_len = len(permits)
+        permits = [p for p in permits if p.get("id") not in permit_ids]
+        
+        with open(permits_file, 'w') as f:
+            json.dump(permits, f, indent=4)
+            
+        deleted_count = initial_len - len(permits)
+        log_audit("Hapus Izin", "Admin/Guru", f"Menghapus {deleted_count} data izin")
+        return jsonify({"success": True, "message": f"Berhasil menghapus {deleted_count} data izin."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/whatsapp-logs', methods=['GET', 'POST'])
 def handle_whatsapp_logs():
     logs_file = "whatsapp_logs.json"
