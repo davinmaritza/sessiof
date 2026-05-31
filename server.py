@@ -120,6 +120,24 @@ def log_attendance(name):
     tahun = now.strftime("%Y")
     waktu = now.strftime("%H:%M:%S")
     
+    # Calculate status based on arrival time + grace period
+    status = "Hadir"
+    is_late = False
+    try:
+        settings = load_settings()
+        arrival_time = settings.get("arrivalTime", "06:30")
+        grace_period = int(settings.get("gracePeriod", 0))
+        
+        ahour, amin = map(int, arrival_time.split(":"))
+        total_arrival_mins = ahour * 60 + amin + grace_period
+        
+        total_curr_mins = now.hour * 60 + now.minute
+        if total_curr_mins > total_arrival_mins:
+            is_late = True
+            status = "Terlambat"
+    except Exception as e:
+        print(f"Gagal memproses batas keterlambatan: {e}")
+        
     data_absen = {
         "Nama": [name],
         "Kelas": [kelas],
@@ -129,7 +147,7 @@ def log_attendance(name):
         "Bulan": [bulan],
         "Tahun": [tahun],
         "Waktu Absen": [waktu],
-        "Status": ["Hadir"]
+        "Status": [status]
     }
     df_new = pd.DataFrame(data_absen)
     
@@ -177,12 +195,43 @@ def log_attendance(name):
         payload = {
             "nama": name, "kelas": kelas, "no_absen": no_absen,
             "hari": hari_ini, "tanggal": tanggal, 
-            "bulan": bulan, "tahun": tahun, "waktu": waktu, "status": "Hadir"
+            "bulan": bulan, "tahun": tahun, "waktu": waktu, "status": status
         }
         try:
             requests.post(GOOGLE_SHEETS_WEBHOOK_URL, json=payload, timeout=5)
         except Exception:
             pass
+            
+    if not sudah_absen_hari_ini:
+        settings = load_settings()
+        if settings.get("whatsappNotificationsEnabled", True):
+            logs_file = "whatsapp_logs.json"
+            whatsapp_logs = []
+            if os.path.exists(logs_file):
+                try:
+                    with open(logs_file, 'r') as f:
+                        whatsapp_logs = json.load(f)
+                except Exception:
+                    pass
+            
+            if is_late:
+                message_body = f"Yth. Orang tua dari {name}, menginfokan bahwa siswa telah masuk sekolah pada pukul {waktu} (Terlambat)."
+            else:
+                message_body = f"Yth. Orang tua dari {name}, menginfokan bahwa siswa telah hadir di sekolah dengan tepat waktu pada pukul {waktu}."
+                
+            new_log = {
+                "id": len(whatsapp_logs) + 1,
+                "recipient": f"Orang Tua {name}",
+                "message": message_body,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "status": "Sent"
+            }
+            whatsapp_logs.insert(0, new_log)
+            try:
+                with open(logs_file, 'w') as f:
+                    json.dump(whatsapp_logs, f, indent=4)
+            except Exception as e:
+                print(f"Gagal menulis log WhatsApp: {e}")
             
     latest_scan = {
         "name": name,
@@ -1104,6 +1153,390 @@ def verify_attendance_face():
         })
     else:
         return jsonify({"error": "Wajah tidak dikenali dalam sistem. Silakan coba lagi atau hubungi admin."}), 400
+
+# --- PORTAL LANJUTAN ENDPOINTS ---
+
+@app.route('/api/announcements', methods=['GET', 'POST'])
+def handle_announcements():
+    announcements_file = "announcements.json"
+    if request.method == 'POST':
+        data = request.json
+        title = data.get("title", "").strip()
+        content = data.get("content", "").strip()
+        class_name = data.get("class_name", "Semua").strip()
+        
+        if not title or not content:
+            return jsonify({"error": "Judul dan isi pengumuman wajib diisi!"}), 400
+            
+        announcements = []
+        if os.path.exists(announcements_file):
+            try:
+                with open(announcements_file, 'r') as f:
+                    announcements = json.load(f)
+            except Exception:
+                pass
+                
+        new_ann = {
+            "id": int(time.time()),
+            "title": title,
+            "content": content,
+            "class_name": class_name,
+            "date": datetime.now().strftime("%d %B %Y %H:%M")
+        }
+        announcements.insert(0, new_ann)
+        with open(announcements_file, 'w') as f:
+            json.dump(announcements, f, indent=4)
+        return jsonify(new_ann)
+        
+    else: # GET
+        announcements = []
+        if os.path.exists(announcements_file):
+            try:
+                with open(announcements_file, 'r') as f:
+                    announcements = json.load(f)
+            except Exception:
+                pass
+        return jsonify(announcements)
+
+@app.route('/api/announcements/<int:ann_id>', methods=['DELETE'])
+def delete_announcement(ann_id):
+    announcements_file = "announcements.json"
+    if os.path.exists(announcements_file):
+        try:
+            with open(announcements_file, 'r') as f:
+                anns = json.load(f)
+            anns = [a for a in anns if a.get("id") != ann_id]
+            with open(announcements_file, 'w') as f:
+                json.dump(anns, f, indent=4)
+            return jsonify({"success": True})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    return jsonify({"error": "File tidak ditemukan"}), 404
+
+@app.route('/api/permits', methods=['GET', 'POST'])
+def handle_permits():
+    permits_file = "permits.json"
+    if request.method == 'POST':
+        data = request.json
+        student_name = data.get("student_name", "").strip()
+        class_name = data.get("class_name", "").strip()
+        status = data.get("status", "Sakit").strip()
+        reason = data.get("reason", "").strip()
+        
+        if not student_name or not reason:
+            return jsonify({"error": "Nama dan alasan izin wajib diisi!"}), 400
+            
+        permits = []
+        if os.path.exists(permits_file):
+            try:
+                with open(permits_file, 'r') as f:
+                    permits = json.load(f)
+            except Exception:
+                pass
+                
+        new_permit = {
+            "id": int(time.time()),
+            "student_name": student_name,
+            "class_name": class_name,
+            "status": status,
+            "reason": reason,
+            "date_submitted": datetime.now().strftime("%d %B %Y %H:%M"),
+            "is_approved": "Pending",
+            "document_name": "surat_keterangan.pdf"
+        }
+        permits.insert(0, new_permit)
+        with open(permits_file, 'w') as f:
+            json.dump(permits, f, indent=4)
+        return jsonify(new_permit)
+        
+    else: # GET
+        permits = []
+        if os.path.exists(permits_file):
+            try:
+                with open(permits_file, 'r') as f:
+                    permits = json.load(f)
+            except Exception:
+                pass
+        return jsonify(permits)
+
+@app.route('/api/permits/<int:permit_id>', methods=['PATCH'])
+def approve_permit(permit_id):
+    permits_file = "permits.json"
+    if not os.path.exists(permits_file):
+        return jsonify({"error": "Data izin tidak ditemukan"}), 404
+        
+    try:
+        with open(permits_file, 'r') as f:
+            permits = json.load(f)
+            
+        permit_to_update = None
+        for p in permits:
+            if p.get("id") == permit_id:
+                permit_to_update = p
+                break
+                
+        if not permit_to_update:
+            return jsonify({"error": "Izin tidak ditemukan"}), 404
+            
+        data = request.json
+        new_status = data.get("is_approved") # 'Approved' atau 'Rejected'
+        permit_to_update["is_approved"] = new_status
+        
+        # Jika disetujui, update absensi ke Excel
+        if new_status == "Approved":
+            student_name = permit_to_update.get("student_name")
+            kelas = permit_to_update.get("class_name")
+            status_absensi = permit_to_update.get("status") # 'Sakit' atau 'Izin'
+            
+            metadata = load_metadata()
+            no_absen = metadata.get(student_name, {}).get("absent_no", "-")
+            
+            now = datetime.now()
+            hari_ini = now.strftime("%A")
+            tanggal = now.strftime("%d")
+            bulan = now.strftime("%B")
+            tahun = now.strftime("%Y")
+            waktu = "-"
+            
+            data_absen = {
+                "Nama": [student_name],
+                "Kelas": [kelas],
+                "No Absen": [no_absen],
+                "Hari": [hari_ini],
+                "Tanggal": [tanggal],
+                "Bulan": [bulan],
+                "Tahun": [tahun],
+                "Waktu Absen": [waktu],
+                "Status": [status_absensi]
+            }
+            df_new = pd.DataFrame(data_absen)
+            
+            if os.path.exists(EXCEL_FILE):
+                df_existing = pd.read_excel(EXCEL_FILE)
+                # Hapus record hari ini untuk siswa tersebut jika ada
+                df_existing = df_existing[~(
+                    (df_existing["Nama"] == student_name) & 
+                    (pd.to_numeric(df_existing["Tanggal"], errors='coerce') == int(tanggal)) & 
+                    (df_existing["Bulan"] == bulan) & 
+                    (pd.to_numeric(df_existing["Tahun"], errors='coerce') == int(tahun))
+                )]
+                df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+                df_combined.to_excel(EXCEL_FILE, index=False)
+            else:
+                df_new.to_excel(EXCEL_FILE, index=False)
+                
+        with open(permits_file, 'w') as f:
+            json.dump(permits, f, indent=4)
+            
+        return jsonify(permit_to_update)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/whatsapp-logs', methods=['GET', 'POST'])
+def handle_whatsapp_logs():
+    logs_file = "whatsapp_logs.json"
+    if request.method == 'POST':
+        data = request.json
+        name = data.get("name", "").strip()
+        message = data.get("message", "").strip()
+        
+        logs = []
+        if os.path.exists(logs_file):
+            try:
+                with open(logs_file, 'r') as f:
+                    logs = json.load(f)
+            except Exception:
+                pass
+                
+        new_log = {
+            "id": len(logs) + 1,
+            "recipient": f"Orang Tua {name}",
+            "message": message,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "status": "Sent"
+        }
+        logs.insert(0, new_log)
+        with open(logs_file, 'w') as f:
+            json.dump(logs, f, indent=4)
+        return jsonify(new_log)
+    else: # GET
+        logs = []
+        if os.path.exists(logs_file):
+            try:
+                with open(logs_file, 'r') as f:
+                    logs = json.load(f)
+            except Exception:
+                pass
+        return jsonify(logs)
+
+def init_users_db():
+    users_file = "users.json"
+    if not os.path.exists(users_file):
+        default_users = [
+            {
+                "username": "admin",
+                "password": "admin",
+                "role": "admin",
+                "name": "Administrator"
+            }
+        ]
+        try:
+            with open(users_file, "w") as f:
+                json.dump(default_users, f, indent=4)
+        except Exception as e:
+            print(f"Gagal inisialisasi database user: {e}")
+
+@app.route('/api/login', methods=['POST'])
+def unified_login():
+    data = request.json
+    username = data.get("username", "").strip().lower()
+    password = data.get("password", "").strip()
+    
+    if not username or not password:
+        return jsonify({"error": "Username dan password wajib diisi!"}), 400
+        
+    init_users_db()
+    
+    # 1. Cek Admin/Guru di users.json
+    users_file = "users.json"
+    if os.path.exists(users_file):
+        try:
+            with open(users_file, 'r') as f:
+                users = json.load(f)
+            for u in users:
+                if u.get("username", "").lower() == username and u.get("password") == password:
+                    return jsonify({
+                        "success": True,
+                        "username": u.get("username"),
+                        "role": u.get("role", "guru"),
+                        "name": u.get("name", "User"),
+                        "class_name": u.get("class_name", "")
+                    })
+        except Exception:
+            pass
+            
+    # 2. Cek Student di students_metadata.json
+    metadata = load_metadata()
+    for student_name, info in metadata.items():
+        curr_user = info.get("username", student_name.lower().replace(" ", "")).lower()
+        curr_pass = str(info.get("password", "12345"))
+        
+        if curr_user == username and curr_pass == password:
+            return jsonify({
+                "success": True,
+                "username": curr_user,
+                "role": "student",
+                "name": student_name,
+                "class_name": info.get("class_name", "-"),
+                "absent_no": info.get("absent_no", "-")
+            })
+            
+    return jsonify({"error": "Username atau password salah!"}), 401
+
+@app.route('/api/users', methods=['GET', 'POST'])
+def handle_users():
+    users_file = "users.json"
+    init_users_db()
+    
+    if request.method == 'POST':
+        data = request.json
+        username = data.get("username", "").strip().lower()
+        password = data.get("password", "").strip()
+        role = data.get("role", "guru").strip().lower()
+        name = data.get("name", "").strip()
+        class_name = data.get("class_name", "").strip()
+        
+        if not username or not password or not name:
+            return jsonify({"error": "Data username, password, dan nama harus lengkap!"}), 400
+            
+        try:
+            with open(users_file, 'r') as f:
+                users = json.load(f)
+        except Exception:
+            users = []
+            
+        # Check duplicate
+        if any(u.get("username", "").lower() == username for u in users):
+            return jsonify({"error": "Username sudah terdaftar!"}), 400
+            
+        new_user = {
+            "username": username,
+            "password": password,
+            "role": role,
+            "name": name,
+            "class_name": class_name if role == "guru" else ""
+        }
+        users.append(new_user)
+        try:
+            with open(users_file, 'w') as f:
+                json.dump(users, f, indent=4)
+        except Exception as e:
+            return jsonify({"error": f"Gagal menyimpan user baru: {e}"}), 500
+        return jsonify(new_user)
+    else: # GET
+        try:
+            with open(users_file, 'r') as f:
+                users = json.load(f)
+        except Exception:
+            users = []
+        return jsonify(users)
+
+@app.route('/api/users/<username>', methods=['PUT', 'DELETE'])
+def manage_user_endpoint(username):
+    users_file = "users.json"
+    init_users_db()
+    username = username.strip().lower()
+    
+    if request.method == 'DELETE':
+        if username == 'admin':
+            return jsonify({"error": "Akun admin utama tidak boleh dihapus!"}), 400
+            
+        try:
+            with open(users_file, 'r') as f:
+                users = json.load(f)
+            users = [u for u in users if u.get("username", "").lower() != username]
+            with open(users_file, 'w') as f:
+                json.dump(users, f, indent=4)
+            return jsonify({"success": True})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+        
+    else: # PUT
+        data = request.json
+        password = data.get("password", "").strip()
+        name = data.get("name", "").strip()
+        role = data.get("role", "guru").strip()
+        class_name = data.get("class_name", "").strip()
+        
+        try:
+            with open(users_file, 'r') as f:
+                users = json.load(f)
+                
+            user_found = False
+            for u in users:
+                if u.get("username", "").lower() == username:
+                    if password:
+                        u["password"] = password
+                    if name:
+                        u["name"] = name
+                    if role and username != 'admin': # Admin role cannot change
+                        u["role"] = role
+                    # Store class_name if role is guru
+                    if u.get("role") == "guru":
+                        u["class_name"] = class_name
+                    else:
+                        u["class_name"] = ""
+                    user_found = True
+                    break
+                    
+            if not user_found:
+                return jsonify({"error": "User tidak ditemukan!"}), 404
+                
+            with open(users_file, 'w') as f:
+                json.dump(users, f, indent=4)
+            return jsonify({"success": True})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
 def migrate_dataset():
     if not os.path.exists(DATASET_DIR):

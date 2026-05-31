@@ -56,6 +56,9 @@ export default function DashboardPage() {
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [eventForm, setEventForm] = useState({ title: '', type: 'Online', time: '', icon: 'calendar' });
   const lastScanTimestampRef = useRef<number>(0);
+  const [userRole, setUserRole] = useState('admin');
+  const [userName, setUserName] = useState('Administrator');
+  const [userClass, setUserClass] = useState('');
 
   const getCurrentWeekDates = () => {
     const today = new Date();
@@ -177,6 +180,13 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
+    const role = localStorage.getItem('sessiof_user_role') || 'admin';
+    const name = localStorage.getItem('sessiof_user_name') || 'Administrator';
+    const ucls = localStorage.getItem('sessiof_user_class') || '';
+    setUserRole(role);
+    setUserName(name);
+    setUserClass(ucls);
+
     fetchAttendance(); fetchServerStatus(); fetchAgenda(); fetchSettings();
     const interval = setInterval(() => { fetchAttendance(); fetchServerStatus(); fetchAgenda(); }, 3000);
     
@@ -216,8 +226,13 @@ export default function DashboardPage() {
 
   let tepatWaktu = 0, terlambat = 0, sakitIzin = 0;
   records.forEach(r => {
-    if (r.Status === 'Izin' || r.Status === 'Sakit') sakitIzin++;
-    else if (r['Waktu Absen'] && r.Status !== 'Alpa') {
+    if (r.Status === 'Izin' || r.Status === 'Sakit') {
+      sakitIzin++;
+    } else if (r.Status === 'Terlambat') {
+      terlambat++;
+    } else if (r.Status === 'Hadir') {
+      tepatWaktu++;
+    } else if (r['Waktu Absen'] && r.Status !== 'Alpa') {
       if (r['Waktu Absen'] > settings.arrivalTime + ":00") terlambat++;
       else tepatWaktu++;
     }
@@ -303,8 +318,24 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--text-title)' }}>Selamat Datang, Admin</h2>
-            <p className="text-[13px] mt-1" style={{ color: 'var(--text-muted)' }}>Ringkasan aktivitas absensi hari ini.</p>
+            <h2 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--text-title)' }}>
+              Selamat Datang, {userName}
+            </h2>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase border ${
+                userRole === 'admin' 
+                  ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-100 dark:border-red-500/20' 
+                  : 'bg-primary-surface text-primary border-primary-lighter dark:border-primary-light/20'
+              }`}>
+                {userRole === 'admin' ? 'Administrator' : 'Guru / Wali Kelas'}
+              </span>
+              {userRole === 'guru' && (
+                <span className="text-xs text-slate-500 dark:text-zinc-400">
+                  Wali Kelas: <strong className="font-bold">{userClass || 'Semua Kelas (Umum)'}</strong>
+                </span>
+              )}
+            </div>
+            <p className="text-[13px] mt-2.5" style={{ color: 'var(--text-muted)' }}>Ringkasan aktivitas absensi hari ini.</p>
           </div>
         </div>
 
@@ -452,11 +483,12 @@ export default function DashboardPage() {
                     <td className="py-3.5 px-5 font-mono font-medium" style={{ color: 'var(--text-title)' }}>{r['Waktu Absen']}</td>
                     <td className="py-3.5 px-5" style={{ color: 'var(--text-muted)' }}>{r.Tanggal} {r.Bulan}</td>
                     <td className="py-3.5 px-5 text-center">
-                      <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-md uppercase tracking-wider
-                        ${(r.Status || 'Hadir') === 'Hadir' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 
-                          ((r.Status || 'Hadir') === 'Alpa' ? 'bg-red-50 text-red-600 border border-red-100' : 
-                          ((r.Status || 'Hadir') === 'Izin' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 
-                          'bg-blue-50 text-blue-600 border border-blue-100'))}`}>
+                      <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-md uppercase tracking-wider border
+                        ${r.Status === 'Hadir' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20' : 
+                          (r.Status === 'Terlambat' ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-100 dark:border-orange-500/20' : 
+                          (r.Status === 'Alpa' ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-100 dark:border-red-500/20' : 
+                          (r.Status === 'Izin' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-500/20' : 
+                          'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-500/20')))}`}>
                         {r.Status || 'Hadir'}
                       </span>
                     </td>

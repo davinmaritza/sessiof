@@ -506,10 +506,12 @@ export default function AttendancePage() {
                         onChange={(e) => handleStatusChange(record, e.target.value)}
                         className={`status-select outline-none appearance-none text-center
                           ${(record.Status || 'Hadir') === 'Hadir' ? 'status-hadir' : 
+                            (record.Status === 'Terlambat' ? 'status-terlambat' : 
                             (record.Status === 'Alpa' ? 'status-alpa' : 
-                            (record.Status === 'Izin' ? 'status-izin' : 'status-sakit'))}`}
+                            (record.Status === 'Izin' ? 'status-izin' : 'status-sakit')))}`}
                       >
                         <option value="Hadir" className="text-emerald-600 font-semibold bg-white dark:bg-zinc-800">Hadir</option>
+                        <option value="Terlambat" className="text-orange-600 font-semibold bg-white dark:bg-zinc-800">Terlambat</option>
                         <option value="Alpa" className="text-red-600 font-semibold bg-white dark:bg-zinc-800">Alpa</option>
                         <option value="Izin" className="text-amber-600 font-semibold bg-white dark:bg-zinc-800">Izin</option>
                         <option value="Sakit" className="text-blue-600 font-semibold bg-white dark:bg-zinc-800">Sakit</option>

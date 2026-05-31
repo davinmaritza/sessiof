@@ -14,7 +14,9 @@ const defaultSettings = {
   darkMode: false,
   autoBackup: false,
   livenessEnabled: true,
-  livenessThreshold: 50
+  livenessThreshold: 50,
+  gracePeriod: 0,
+  whatsappNotificationsEnabled: true
 };
 
 export async function GET() {

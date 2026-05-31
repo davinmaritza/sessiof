@@ -16,6 +16,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Sessiof — Sistem Absensi Wajah",
   description: "Portal absensi presensi deteksi wajah sekolah berbasis AI",
+  icons: {
+    icon: "/sessiof-logo.png",
+    shortcut: "/sessiof-logo.png",
+    apple: "/sessiof-logo.png",
+  },
 };
 
 export default function RootLayout({

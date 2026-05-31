@@ -10,7 +10,9 @@ export default function SettingsPage() {
     darkMode: false,
     autoBackup: false,
     livenessEnabled: true,
-    livenessThreshold: 50
+    livenessThreshold: 50,
+    gracePeriod: 0,
+    whatsappNotificationsEnabled: true
   });
   const [status, setStatus] = useState('');
 
@@ -59,7 +61,7 @@ export default function SettingsPage() {
         {/* Pengaturan Waktu Absensi */}
         <div>
           <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 mb-4">Pengaturan Waktu Absensi</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
               <label className="font-bold text-slate-900 text-xs block mb-1">Batas Jam Kedatangan (Tepat Waktu)</label>
               <p className="text-[10px] text-slate-500 font-medium mb-3">Siswa yang hadir setelah jam ini akan dihitung Terlambat.</p>
@@ -67,6 +69,18 @@ export default function SettingsPage() {
                 type="time"
                 value={settings.arrivalTime}
                 onChange={(e) => handleChange('arrivalTime', e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:border-primary transition-all"
+              />
+            </div>
+            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
+              <label className="font-bold text-slate-900 text-xs block mb-1">Toleransi Keterlambatan (Menit)</label>
+              <p className="text-[10px] text-slate-500 font-medium mb-3">Batas toleransi tambahan setelah batas kedatangan.</p>
+              <input
+                type="number"
+                min="0"
+                max="60"
+                value={settings.gracePeriod}
+                onChange={(e) => handleChange('gracePeriod', parseInt(e.target.value) || 0)}
                 className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:border-primary transition-all"
               />
             </div>
@@ -155,6 +169,19 @@ export default function SettingsPage() {
               </div>
               <div className={`w-10 h-5 rounded-full relative shadow-inner transition-colors ${settings.autoBackup ? 'bg-primary' : 'bg-slate-200'}`}>
                 <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${settings.autoBackup ? 'right-0.5' : 'left-0.5'}`}></div>
+              </div>
+            </div>
+
+            <div
+              onClick={() => handleChange('whatsappNotificationsEnabled', !settings.whatsappNotificationsEnabled)}
+              className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <div>
+                <h4 className="font-bold text-slate-900 text-xs">Notifikasi WhatsApp Orang Tua</h4>
+                <p className="text-[10px] text-slate-500 font-medium mt-0.5">Kirim pesan WhatsApp otomatis ke orang tua ketika absensi terekam</p>
+              </div>
+              <div className={`w-10 h-5 rounded-full relative shadow-inner transition-colors ${settings.whatsappNotificationsEnabled ? 'bg-primary' : 'bg-slate-200'}`}>
+                <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${settings.whatsappNotificationsEnabled ? 'right-0.5' : 'left-0.5'}`}></div>
               </div>
             </div>
           </div>

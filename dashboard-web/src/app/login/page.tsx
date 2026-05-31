@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import SessiofLogo from '@/components/SessiofLogo';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,30 +32,33 @@ export default function LoginPage() {
     const cleanUsername = username.trim();
     const cleanPassword = password.trim();
 
-    if (cleanUsername.toLowerCase() === 'admin' && cleanPassword === 'admin') {
-      localStorage.setItem('sessiof_admin_logged', 'true');
-      router.push('/dashboard');
-    } else {
-      try {
-        const res = await fetch('http://localhost:5000/api/student/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: cleanUsername, password: cleanPassword })
-        });
-        const data = await res.json();
-        
-        if (res.ok && data.success) {
+    try {
+      const res = await fetch('http://localhost:5000/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: cleanUsername, password: cleanPassword })
+      });
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        if (data.role === 'admin' || data.role === 'guru') {
+          localStorage.setItem('sessiof_admin_logged', 'true');
+          localStorage.setItem('sessiof_user_role', data.role);
+          localStorage.setItem('sessiof_user_name', data.name);
+          localStorage.setItem('sessiof_user_class', data.class_name || '');
+          router.push('/dashboard');
+        } else if (data.role === 'student') {
           localStorage.setItem('sessiof_student_logged', 'true');
           localStorage.setItem('sessiof_student_name', data.name);
           localStorage.setItem('sessiof_student_class', data.class_name);
           localStorage.setItem('sessiof_student_absent', data.absent_no);
           router.push('/student/dashboard');
-        } else {
-          setLoginError(data.error || 'Username atau password salah.');
         }
-      } catch (error) {
-        setLoginError('Tidak dapat terhubung ke server.');
+      } else {
+        setLoginError(data.error || 'Username atau password salah.');
       }
+    } catch (error) {
+      setLoginError('Tidak dapat terhubung ke server.');
     }
     setIsLoading(false);
   };
@@ -72,11 +76,8 @@ export default function LoginPage() {
       <div className="w-full max-w-[400px] animate-scale-in">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="mx-auto h-11 w-11 rounded-xl flex items-center justify-center mb-5"
-            style={{ background: 'linear-gradient(135deg, #5b4dc7, #7c6fe0)' }}>
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.746 3.746 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
-            </svg>
+          <div className="mx-auto mb-5 flex justify-center">
+            <SessiofLogo size={48} />
           </div>
           <h1 className="text-[22px] font-semibold tracking-tight login-title">Masuk ke Sessiof</h1>
           <p className="text-[13px] text-[#8a8a9a] mt-1.5">Sistem absensi presensi wajah sekolah</p>

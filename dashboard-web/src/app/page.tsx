@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import SessiofLogo from '@/components/SessiofLogo';
 
 interface Student {
   name: string;
@@ -52,9 +53,7 @@ export default function LandingPage() {
       {/* HEADER NAVIGASI */}
       <header className="max-w-7xl w-full mx-auto px-6 py-6 flex items-center justify-between z-20 relative">
         <div className="flex items-center gap-3 group cursor-pointer">
-          <div className="h-10 w-10 bg-gradient-to-tr from-primary to-primary-light rounded-xl flex items-center justify-center text-white font-black text-lg shadow-lg shadow-primary/20 transition-transform duration-300 group-hover:rotate-12">
-            S
-          </div>
+          <SessiofLogo size={40} />
           <span className="font-extrabold text-slate-900 text-xl tracking-tight">sessiof</span>
         </div>
         
